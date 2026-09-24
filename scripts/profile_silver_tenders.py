@@ -46,7 +46,7 @@ def main() -> None:
             "publication_number",
             "buyer_countries",
         )
-        .explode("buyer_countries")
+        .explode("buyer_countries", empty_as_null=True)
         .group_by("buyer_countries")
         .agg(
             pl.col("publication_number")
