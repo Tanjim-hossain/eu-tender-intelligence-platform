@@ -128,6 +128,7 @@ def test_client_iterates_using_next_token() -> None:
 
         if call_count == 1:
             payload = sample_response()
+            payload["totalNoticeCount"] = 2
             payload["iterationNextToken"] = (
                 "token-page-2"
             )
@@ -138,7 +139,14 @@ def test_client_iterates_using_next_token() -> None:
             )
 
         payload = sample_response()
-        payload["iterationNextToken"] = None
+        payload["totalNoticeCount"] = 2
+
+        # Deliberately keep a token even though
+        # totalNoticeCount has now been reached.
+        # The iterator must stop by record count.
+        payload["iterationNextToken"] = (
+            "token-after-logical-end"
+        )
 
         return httpx.Response(
             200,

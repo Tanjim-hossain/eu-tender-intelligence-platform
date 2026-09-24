@@ -158,7 +158,7 @@ class TedClient:
         *,
         max_pages: int | None = None,
     ) -> Iterator[TedIterationPage]:
-        """Iterate through TED results using scroll tokens."""
+        """Iterate safely through TED results using scroll tokens."""
 
         if max_pages is not None and max_pages < 1:
             raise ValueError(
@@ -172,6 +172,8 @@ class TedClient:
         )
 
         page_number = 0
+        retrieved_count = 0
+        expected_total: int | None = None
 
         while True:
             page_number += 1
@@ -185,11 +187,55 @@ class TedClient:
 
             result = self.search(page_request)
 
+            page_total = (
+                result.parsed.total_notice_count
+            )
+
+            if expected_total is None:
+                expected_total = page_total
+            elif page_total != expected_total:
+                raise TedApiError(
+                    "TED totalNoticeCount changed "
+                    "during iteration: "
+                    f"{expected_total} -> {page_total}"
+                )
+
+            page_record_count = len(
+                result.parsed.notices
+            )
+
+            if page_record_count == 0:
+                if retrieved_count < expected_total:
+                    raise TedApiError(
+                        "TED returned an empty page "
+                        "before all expected records "
+                        "were retrieved: "
+                        f"{retrieved_count}/"
+                        f"{expected_total}"
+                    )
+
+                return
+
+            retrieved_count += page_record_count
+
+            if retrieved_count > expected_total:
+                raise TedApiError(
+                    "TED returned more records than "
+                    "totalNoticeCount: "
+                    f"{retrieved_count}/"
+                    f"{expected_total}"
+                )
+
             yield TedIterationPage(
                 page_number=page_number,
                 request=page_request,
                 result=result,
             )
+
+            # Critical termination condition.
+            # Do not rely only on the scroll token.
+            if retrieved_count >= expected_total:
+                return
 
             if (
                 max_pages is not None
@@ -202,7 +248,13 @@ class TedClient:
             )
 
             if not next_token:
-                return
+                raise TedApiError(
+                    "TED iteration token ended "
+                    "before all expected records "
+                    "were retrieved: "
+                    f"{retrieved_count}/"
+                    f"{expected_total}"
+                )
 
             if next_token in seen_tokens:
                 raise TedApiError(

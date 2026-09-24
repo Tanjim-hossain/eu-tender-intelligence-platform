@@ -33,7 +33,7 @@ def main() -> None:
 
     for page in client.iterate(
         request,
-        max_pages=2,
+        max_pages=25,
     ):
         count = len(
             page.result.parsed.notices
