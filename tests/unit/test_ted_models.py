@@ -70,3 +70,23 @@ def test_search_request_uses_ted_aliases() -> None:
     assert payload["checkQuerySyntax"] is False
     assert payload["paginationMode"] == "PAGE_NUMBER"
     assert payload["onlyLatestVersions"] is True
+
+
+def test_iteration_request_uses_token_and_omits_page() -> None:
+    request = TedSearchRequest(
+        query="buyer-country = BEL",
+        fields=["publication-number"],
+        limit=250,
+        pagination_mode="ITERATION",
+        iteration_next_token="next-token-123",
+    )
+
+    payload = request.to_api_payload()
+
+    assert payload["paginationMode"] == "ITERATION"
+    assert (
+        payload["iterationNextToken"]
+        == "next-token-123"
+    )
+    assert "page" not in payload
+    assert payload["limit"] == 250

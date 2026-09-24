@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import time
+from collections.abc import Iterator
 from dataclasses import dataclass
 from typing import Any
 
@@ -12,7 +13,9 @@ from tendergraph.ingestion.models import (
     TedSearchResponse,
 )
 
-TED_SEARCH_URL = "https://api.ted.europa.eu/v3/notices/search"
+TED_SEARCH_URL = (
+    "https://api.ted.europa.eu/v3/notices/search"
+)
 
 RETRYABLE_STATUS_CODES = {
     429,
@@ -28,15 +31,24 @@ class TedApiError(RuntimeError):
 
 
 class TedResponseValidationError(TedApiError):
-    """Raised when TED returns a response that violates our contract."""
+    """Raised when TED violates our source contract."""
 
 
 @dataclass(frozen=True, slots=True)
 class TedSearchResult:
-    """Raw and validated representations of one TED response."""
+    """Raw and validated forms of one TED response."""
 
     raw: dict[str, Any]
     parsed: TedSearchResponse
+
+
+@dataclass(frozen=True, slots=True)
+class TedIterationPage:
+    """One page returned during TED iteration."""
+
+    page_number: int
+    request: TedSearchRequest
+    result: TedSearchResult
 
 
 class TedClient:
@@ -61,7 +73,7 @@ class TedClient:
         self,
         request: TedSearchRequest,
     ) -> TedSearchResult:
-        """Execute and validate one TED search request."""
+        """Execute and validate one TED request."""
 
         with httpx.Client(
             timeout=self.timeout_seconds,
@@ -71,7 +83,9 @@ class TedClient:
                 "Content-Type": "application/json",
             },
         ) as client:
-            for attempt in range(self.max_retries + 1):
+            for attempt in range(
+                self.max_retries + 1
+            ):
                 try:
                     response = client.post(
                         self.base_url,
@@ -113,12 +127,15 @@ class TedClient:
 
                 if not isinstance(payload, dict):
                     raise TedApiError(
-                        "TED response must be a JSON object"
+                        "TED response must be "
+                        "a JSON object"
                     )
 
                 try:
-                    parsed = TedSearchResponse.model_validate(
-                        payload
+                    parsed = (
+                        TedSearchResponse.model_validate(
+                            payload
+                        )
                     )
                 except ValidationError as exc:
                     raise TedResponseValidationError(
@@ -131,10 +148,76 @@ class TedClient:
                     parsed=parsed,
                 )
 
-        raise RuntimeError("Unreachable TED client state")
+        raise RuntimeError(
+            "Unreachable TED client state"
+        )
+
+    def iterate(
+        self,
+        request: TedSearchRequest,
+        *,
+        max_pages: int | None = None,
+    ) -> Iterator[TedIterationPage]:
+        """Iterate through TED results using scroll tokens."""
+
+        if max_pages is not None and max_pages < 1:
+            raise ValueError(
+                "max_pages must be >= 1"
+            )
+
+        token = request.iteration_next_token
+
+        seen_tokens: set[str] = (
+            {token} if token else set()
+        )
+
+        page_number = 0
+
+        while True:
+            page_number += 1
+
+            page_request = request.model_copy(
+                update={
+                    "pagination_mode": "ITERATION",
+                    "iteration_next_token": token,
+                }
+            )
+
+            result = self.search(page_request)
+
+            yield TedIterationPage(
+                page_number=page_number,
+                request=page_request,
+                result=result,
+            )
+
+            if (
+                max_pages is not None
+                and page_number >= max_pages
+            ):
+                return
+
+            next_token = (
+                result.parsed.iteration_next_token
+            )
+
+            if not next_token:
+                return
+
+            if next_token in seen_tokens:
+                raise TedApiError(
+                    "TED returned a repeated "
+                    "iteration token"
+                )
+
+            seen_tokens.add(next_token)
+            token = next_token
 
     def _backoff(self, attempt: int) -> None:
-        delay = self.backoff_seconds * (2**attempt)
+        delay = (
+            self.backoff_seconds
+            * (2**attempt)
+        )
 
         if delay > 0:
             time.sleep(delay)

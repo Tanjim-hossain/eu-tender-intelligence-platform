@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -14,8 +14,12 @@ class TedNotice(BaseModel):
     )
 
     notice_type: str = Field(alias="notice-type")
-    publication_number: str = Field(alias="publication-number")
-    publication_date: str = Field(alias="publication-date")
+    publication_number: str = Field(
+        alias="publication-number"
+    )
+    publication_date: str = Field(
+        alias="publication-date"
+    )
 
     classification_cpv: list[str] = Field(
         default_factory=list,
@@ -71,17 +75,38 @@ class TedSearchRequest(BaseModel):
 
     query: str
     fields: list[str]
-    page: int = 1
-    limit: int = 20
+
+    page: int = Field(
+        default=1,
+        ge=1,
+    )
+
+    limit: int = Field(
+        default=20,
+        ge=1,
+        le=250,
+    )
+
     scope: str = "ALL"
+
     check_query_syntax: bool = Field(
         default=False,
         alias="checkQuerySyntax",
     )
-    pagination_mode: str = Field(
+
+    pagination_mode: Literal[
+        "PAGE_NUMBER",
+        "ITERATION",
+    ] = Field(
         default="PAGE_NUMBER",
         alias="paginationMode",
     )
+
+    iteration_next_token: str | None = Field(
+        default=None,
+        alias="iterationNextToken",
+    )
+
     only_latest_versions: bool = Field(
         default=True,
         alias="onlyLatestVersions",
@@ -92,7 +117,12 @@ class TedSearchRequest(BaseModel):
     )
 
     def to_api_payload(self) -> dict[str, Any]:
-        return self.model_dump(
+        payload = self.model_dump(
             by_alias=True,
             exclude_none=True,
         )
+
+        if self.pagination_mode == "ITERATION":
+            payload.pop("page", None)
+
+        return payload

@@ -115,3 +115,62 @@ def test_client_raises_on_non_retryable_error() -> None:
 
     with pytest.raises(TedApiError):
         client.search(search_request())
+
+
+def test_client_iterates_using_next_token() -> None:
+    call_count = 0
+
+    def handler(
+        request: httpx.Request,
+    ) -> httpx.Response:
+        nonlocal call_count
+        call_count += 1
+
+        if call_count == 1:
+            payload = sample_response()
+            payload["iterationNextToken"] = (
+                "token-page-2"
+            )
+
+            return httpx.Response(
+                200,
+                json=payload,
+            )
+
+        payload = sample_response()
+        payload["iterationNextToken"] = None
+
+        return httpx.Response(
+            200,
+            json=payload,
+        )
+
+    client = TedClient(
+        transport=httpx.MockTransport(handler),
+        max_retries=0,
+    )
+
+    request = TedSearchRequest(
+        query="buyer-country = BEL",
+        fields=["publication-number"],
+        limit=250,
+    )
+
+    pages = list(
+        client.iterate(request)
+    )
+
+    assert len(pages) == 2
+    assert call_count == 2
+
+    assert pages[0].page_number == 1
+    assert (
+        pages[0].request.iteration_next_token
+        is None
+    )
+
+    assert pages[1].page_number == 2
+    assert (
+        pages[1].request.iteration_next_token
+        == "token-page-2"
+    )
