@@ -1,0 +1,46 @@
+{
+  "dataset_run_id": "20260925T005716341048Z",
+  "evaluation_k": 10,
+  "queries": [
+    {
+      "id": "q01",
+      "text": "software development",
+      "intent": "Procurements for software engineering, development, implementation, programming, or closely related software services."
+    },
+    {
+      "id": "q02",
+      "text": "cybersecurity services",
+      "intent": "Procurements for cybersecurity, managed security, information security, SOC, security monitoring, or closely related services."
+    },
+    {
+      "id": "q03",
+      "text": "cloud data platform",
+      "intent": "Procurements for cloud platforms, data platforms, cloud data infrastructure, analytics platforms, or closely related systems."
+    },
+    {
+      "id": "q04",
+      "text": "railway maintenance",
+      "intent": "Procurements for railway maintenance, railway service vehicles, rail infrastructure maintenance, or closely related work."
+    },
+    {
+      "id": "q05",
+      "text": "hospital information system",
+      "intent": "Procurements for hospital information systems, clinical information systems, healthcare IT platforms, or closely related software."
+    },
+    {
+      "id": "q06",
+      "text": "SAP implementation",
+      "intent": "Procurements involving SAP implementation, migration, integration, S/4HANA, SAP consulting, or closely related work."
+    },
+    {
+      "id": "q07",
+      "text": "renewable energy consulting",
+      "intent": "Procurements for renewable-energy consulting, planning, advisory, engineering, or closely related professional services."
+    },
+    {
+      "id": "q08",
+      "text": "construction engineering services",
+      "intent": "Procurements for construction engineering, civil engineering, design, supervision, planning, or closely related professional services."
+    }
+  ]
+}
