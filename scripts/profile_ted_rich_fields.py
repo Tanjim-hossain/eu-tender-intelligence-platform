@@ -115,7 +115,7 @@ def main() -> None:
             raw_notices,
             list,
         ):
-            raise RuntimeError(
+            raise TypeError(
                 "TED notices payload "
                 "must be a list"
             )
@@ -125,7 +125,7 @@ def main() -> None:
                 raw_notice,
                 dict,
             ):
-                raise RuntimeError(
+                raise TypeError(
                     "TED notice must be "
                     "a JSON object"
                 )
