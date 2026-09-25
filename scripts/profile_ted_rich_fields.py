@@ -10,7 +10,6 @@ from typing import Any
 from tendergraph.ingestion.client import TedClient
 from tendergraph.ingestion.models import TedSearchRequest
 
-
 QUERY = (
     "publication-date = (20260918 <> 20260924) "
     "AND buyer-country IN (BEL NLD DEU ITA)"
