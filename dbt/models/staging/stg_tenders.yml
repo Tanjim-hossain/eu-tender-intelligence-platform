@@ -3,8 +3,12 @@ version: 2
 models:
   - name: stg_tenders
     description: >
-      Clean dbt staging interface over the
-      PostgreSQL Silver TED tender table.
+      Clean dbt staging interface over the enriched
+      PostgreSQL Silver TED tender table. The model
+      preserves normalized multilingual text,
+      procurement metadata, deadlines, exact financial
+      values, performance locations, lineage, and
+      source links.
 
     columns:
       - name: publication_number
@@ -14,13 +18,81 @@ models:
           - unique
 
       - name: publication_date
+        description: TED notice publication date.
         data_tests:
           - not_null
 
       - name: title
+        description: Deterministically selected notice title.
         data_tests:
           - not_null
 
+      - name: buyer_countries
+        description: >
+          Deduplicated list of countries associated with
+          the contracting buyer.
+        data_tests:
+          - not_null
+
+      - name: lot_descriptions
+        description: >
+          Deduplicated descriptions from the selected
+          lot-description language. May be an empty array.
+        data_tests:
+          - not_null
+
+      - name: contract_natures
+        description: >
+          Deduplicated TED contract-nature values.
+          May be an empty array.
+        data_tests:
+          - not_null
+
+      - name: deadlines
+        description: >
+          Deduplicated procurement deadlines normalized
+          to UTC. May be an empty array.
+        data_tests:
+          - not_null
+
+      - name: estimated_value
+        description: >
+          Exact estimated procurement value stored as
+          PostgreSQL NUMERIC. Nullable when TED does not
+          publish a procedure-level estimate.
+
+      - name: estimated_value_currency
+        description: >
+          Currency associated with estimated_value.
+          Nullable together with estimated_value.
+
+      - name: performance_countries
+        description: >
+          Deduplicated place-of-performance countries.
+          May be an empty array.
+        data_tests:
+          - not_null
+
+      - name: performance_regions
+        description: >
+          Deduplicated place-of-performance subdivisions.
+          May be an empty array.
+        data_tests:
+          - not_null
+
+      - name: earliest_deadline
+        description: >
+          Earliest distinct procurement deadline,
+          normalized to UTC.
+
+      - name: latest_deadline
+        description: >
+          Latest distinct procurement deadline,
+          normalized to UTC.
+
       - name: ingestion_run_id
+        description: >
+          Bronze ingestion run from which the Silver
+          record was produced.
         data_tests:
           - not_null
