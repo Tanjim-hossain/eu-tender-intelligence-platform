@@ -74,6 +74,7 @@ def main() -> None:
         writer = csv.writer(
             handle,
             delimiter="\t",
+            lineterminator="\n",
         )
 
         writer.writerow(
