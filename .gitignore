@@ -45,3 +45,6 @@ dbt/dbt_packages/
 
 # dbt local user state
 dbt/.user.yml
+
+# Local semantic search indexes
+data/search/
