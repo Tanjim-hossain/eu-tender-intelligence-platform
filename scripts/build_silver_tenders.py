@@ -3,6 +3,11 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
+import polars as pl
+
+from tendergraph.processing.quality import (
+    validate_silver_tenders,
+)
 from tendergraph.processing.silver import (
     build_silver_dataframe,
 )
@@ -11,8 +16,9 @@ from tendergraph.processing.silver import (
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Build normalized TED Silver Parquet "
-            "from one completed Bronze run."
+            "Build and validate normalized TED "
+            "Silver Parquet from one completed "
+            "Bronze run."
         )
     )
 
@@ -40,45 +46,142 @@ def main() -> None:
         args.run_dir
     )
 
+    summary = validate_silver_tenders(
+        frame
+    )
+
     args.output.parent.mkdir(
         parents=True,
         exist_ok=True,
     )
 
-    frame.write_parquet(
-        args.output,
-        compression="zstd",
+    temporary_output = (
+        args.output.parent
+        / f".{args.output.name}.tmp"
     )
 
-    print("=== TED SILVER BUILD ===")
-    print(
-        f"Rows:             {frame.height}"
+    temporary_output.unlink(
+        missing_ok=True
     )
+
+    try:
+        frame.write_parquet(
+            temporary_output,
+            compression="zstd",
+        )
+
+        persisted = pl.read_parquet(
+            temporary_output
+        )
+
+        persisted_summary = (
+            validate_silver_tenders(
+                persisted
+            )
+        )
+
+        if persisted.schema != frame.schema:
+            raise ValueError(
+                "Persisted Silver schema does "
+                "not match in-memory schema"
+            )
+
+        if (
+            persisted_summary.row_count
+            != summary.row_count
+        ):
+            raise ValueError(
+                "Persisted Silver row count "
+                "does not match source build"
+            )
+
+        temporary_output.replace(
+            args.output
+        )
+
+    except Exception:
+        temporary_output.unlink(
+            missing_ok=True
+        )
+        raise
+
+    print("=== TED SILVER V2 BUILD ===")
+
     print(
-        f"Columns:          {frame.width}"
+        f"Rows:              "
+        f"{summary.row_count}"
     )
+
     print(
-        "Unique notices:   "
-        f"{frame['publication_number'].n_unique()}"
+        f"Columns:           "
+        f"{frame.width}"
+    )
+
+    print(
+        "Unique notices:    "
+        f"{summary.unique_publication_numbers}"
+    )
+
+    print(
+        "Duplicates:        "
+        f"{summary.duplicate_publication_numbers}"
+    )
+
+    print(
+        "Out-of-scope rows: "
+        f"{summary.out_of_scope_rows}"
+    )
+
+    print(
+        "Rows w/ deadlines: "
+        f"{summary.rows_with_deadlines}"
+    )
+
+    print(
+        "Rows w/ value:     "
+        f"{summary.rows_with_estimated_value}"
     )
 
     print()
-    print("Null counts:")
+    print("Rich-field coverage:")
 
     for column in [
-        "title",
-        "buyer_name",
-        "first_buyer_country",
-        "first_cpv_code",
-        "source_html_url",
+        "description",
+        "procedure_type",
+        "earliest_deadline",
+        "estimated_value",
+        "performance_countries",
+        "performance_regions",
     ]:
+        if (
+            frame.schema[column]
+            == pl.List(pl.String)
+        ):
+            count = frame.filter(
+                pl.col(column)
+                .list.len()
+                .fill_null(0)
+                > 0
+            ).height
+        else:
+            count = frame.filter(
+                pl.col(column).is_not_null()
+            ).height
+
+        percentage = (
+            100 * count / frame.height
+        )
+
         print(
-            f"  {column}: "
-            f"{frame[column].null_count()}"
+            f"  {column:24} "
+            f"{count:4}/{frame.height} "
+            f"({percentage:6.2f}%)"
         )
 
     print()
-    print(f"Output: {args.output}")
+    print(
+        f"Output: {args.output}"
+    )
 
 
 if __name__ == "__main__":
