@@ -1,0 +1,73 @@
+version: 2
+
+models:
+  - name: mart_country_daily
+    description: >
+      Daily TED tender counts by buyer-country membership.
+      Multi-country notices contribute to each associated country.
+
+    columns:
+      - name: publication_date
+        data_tests:
+          - not_null
+
+      - name: buyer_country
+        data_tests:
+          - not_null
+
+      - name: tender_count
+        data_tests:
+          - not_null
+
+  - name: mart_cpv_summary
+    description: >
+      Tender activity summary for each observed CPV code.
+
+    columns:
+      - name: cpv_code
+        data_tests:
+          - not_null
+          - unique
+
+      - name: tender_count
+        data_tests:
+          - not_null
+
+      - name: buyer_country_count
+        data_tests:
+          - not_null
+
+      - name: first_seen_date
+        data_tests:
+          - not_null
+
+      - name: last_seen_date
+        data_tests:
+          - not_null
+
+  - name: mart_buyer_activity
+    description: >
+      Tender activity grouped by normalized buyer-name label.
+      This is not yet entity-resolved across spelling or language variants.
+
+    columns:
+      - name: buyer_name
+        data_tests:
+          - not_null
+          - unique
+
+      - name: tender_count
+        data_tests:
+          - not_null
+
+      - name: buyer_country_count
+        data_tests:
+          - not_null
+
+      - name: first_seen_date
+        data_tests:
+          - not_null
+
+      - name: last_seen_date
+        data_tests:
+          - not_null
