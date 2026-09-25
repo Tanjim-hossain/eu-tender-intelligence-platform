@@ -135,12 +135,18 @@ def evaluate_ranking(
     relevance: dict[str, int],
     *,
     k: int = 10,
+    minimum_relevance: int = 2,
 ) -> RetrievalMetrics:
+    if minimum_relevance <= 0:
+        raise ValueError(
+            "minimum_relevance must be positive"
+        )
+
     relevant = {
         publication_number
         for publication_number, grade
         in relevance.items()
-        if grade > 0
+        if grade >= minimum_relevance
     }
 
     if not relevant:

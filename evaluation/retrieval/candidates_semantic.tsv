@@ -1,0 +1,161 @@
+query_id	query	publication_number	semantic_rank	semantic_score
+q01	software development	643314-2026	1	0.84958225
+q01	software development	653255-2026	2	0.84801614
+q01	software development	649017-2026	3	0.83654708
+q01	software development	652885-2026	4	0.83615005
+q01	software development	660127-2026	5	0.83609909
+q01	software development	660047-2026	6	0.83574921
+q01	software development	659705-2026	7	0.83465898
+q01	software development	646125-2026	8	0.83115602
+q01	software development	660219-2026	9	0.82986373
+q01	software development	648921-2026	10	0.82977271
+q01	software development	654451-2026	11	0.82942146
+q01	software development	646840-2026	12	0.82915652
+q01	software development	645014-2026	13	0.82808632
+q01	software development	648421-2026	14	0.82800764
+q01	software development	654841-2026	15	0.82771516
+q01	software development	643095-2026	16	0.82676572
+q01	software development	659575-2026	17	0.82614440
+q01	software development	654903-2026	18	0.82571518
+q01	software development	659288-2026	19	0.82535112
+q01	software development	650132-2026	20	0.82496798
+q02	cybersecurity services	659834-2026	1	0.86337399
+q02	cybersecurity services	657071-2026	2	0.85949355
+q02	cybersecurity services	650890-2026	3	0.85122591
+q02	cybersecurity services	650101-2026	4	0.85085356
+q02	cybersecurity services	656945-2026	5	0.85063422
+q02	cybersecurity services	645446-2026	6	0.84891373
+q02	cybersecurity services	647984-2026	7	0.84750080
+q02	cybersecurity services	647858-2026	8	0.84575313
+q02	cybersecurity services	646327-2026	9	0.84499931
+q02	cybersecurity services	656227-2026	10	0.84463722
+q02	cybersecurity services	644171-2026	11	0.84392542
+q02	cybersecurity services	654722-2026	12	0.84145570
+q02	cybersecurity services	656597-2026	13	0.84101522
+q02	cybersecurity services	659468-2026	14	0.84046453
+q02	cybersecurity services	654515-2026	15	0.83939016
+q02	cybersecurity services	659505-2026	16	0.83862555
+q02	cybersecurity services	655108-2026	17	0.83852869
+q02	cybersecurity services	650560-2026	18	0.83832842
+q02	cybersecurity services	645014-2026	19	0.83815354
+q02	cybersecurity services	652022-2026	20	0.83781427
+q03	cloud data platform	657249-2026	1	0.84111130
+q03	cloud data platform	646311-2026	2	0.83373314
+q03	cloud data platform	652670-2026	3	0.82769322
+q03	cloud data platform	653878-2026	4	0.82625133
+q03	cloud data platform	654369-2026	5	0.82403719
+q03	cloud data platform	654692-2026	6	0.82398653
+q03	cloud data platform	648025-2026	7	0.82299954
+q03	cloud data platform	650101-2026	8	0.81978559
+q03	cloud data platform	649725-2026	9	0.81891882
+q03	cloud data platform	657207-2026	10	0.81880546
+q03	cloud data platform	650560-2026	11	0.81688988
+q03	cloud data platform	659668-2026	12	0.81687438
+q03	cloud data platform	646142-2026	13	0.81681013
+q03	cloud data platform	659052-2026	14	0.81641316
+q03	cloud data platform	647687-2026	15	0.81620950
+q03	cloud data platform	648939-2026	16	0.81561697
+q03	cloud data platform	654951-2026	17	0.81477296
+q03	cloud data platform	657483-2026	18	0.81474149
+q03	cloud data platform	643314-2026	19	0.81453687
+q03	cloud data platform	645981-2026	20	0.81453133
+q04	railway maintenance	649213-2026	1	0.86575323
+q04	railway maintenance	654198-2026	2	0.84958190
+q04	railway maintenance	657461-2026	3	0.84814095
+q04	railway maintenance	646266-2026	4	0.84380639
+q04	railway maintenance	660064-2026	5	0.84377086
+q04	railway maintenance	657009-2026	6	0.84337091
+q04	railway maintenance	646357-2026	7	0.84153533
+q04	railway maintenance	652176-2026	8	0.84069949
+q04	railway maintenance	647776-2026	9	0.83998185
+q04	railway maintenance	655810-2026	10	0.83879483
+q04	railway maintenance	643229-2026	11	0.83723480
+q04	railway maintenance	644789-2026	12	0.83723480
+q04	railway maintenance	644954-2026	13	0.83723480
+q04	railway maintenance	644988-2026	14	0.83723480
+q04	railway maintenance	657672-2026	15	0.83723480
+q04	railway maintenance	658146-2026	16	0.83723480
+q04	railway maintenance	658675-2026	17	0.83723480
+q04	railway maintenance	659771-2026	18	0.83723480
+q04	railway maintenance	656231-2026	19	0.83662748
+q04	railway maintenance	642912-2026	20	0.83514178
+q05	hospital information system	648886-2026	1	0.86141539
+q05	hospital information system	659052-2026	2	0.85023302
+q05	hospital information system	646785-2026	3	0.84542185
+q05	hospital information system	649461-2026	4	0.84078258
+q05	hospital information system	643137-2026	5	0.84034431
+q05	hospital information system	648335-2026	6	0.83901298
+q05	hospital information system	647977-2026	7	0.83834642
+q05	hospital information system	660164-2026	8	0.83678615
+q05	hospital information system	651332-2026	9	0.83422172
+q05	hospital information system	658427-2026	10	0.83382463
+q05	hospital information system	643973-2026	11	0.83352625
+q05	hospital information system	656834-2026	12	0.83307618
+q05	hospital information system	645587-2026	13	0.83281696
+q05	hospital information system	655586-2026	14	0.83271730
+q05	hospital information system	646663-2026	15	0.83091068
+q05	hospital information system	658000-2026	16	0.82974494
+q05	hospital information system	660082-2026	17	0.82935470
+q05	hospital information system	649131-2026	18	0.82921040
+q05	hospital information system	654054-2026	19	0.82874137
+q05	hospital information system	656682-2026	20	0.82859552
+q06	SAP implementation	645945-2026	1	0.87576348
+q06	SAP implementation	648801-2026	2	0.86127871
+q06	SAP implementation	648242-2026	3	0.85778475
+q06	SAP implementation	654327-2026	4	0.85705489
+q06	SAP implementation	647881-2026	5	0.85420686
+q06	SAP implementation	659765-2026	6	0.85036671
+q06	SAP implementation	658897-2026	7	0.84682524
+q06	SAP implementation	652408-2026	8	0.84673750
+q06	SAP implementation	654787-2026	9	0.84506595
+q06	SAP implementation	651182-2026	10	0.84501016
+q06	SAP implementation	658883-2026	11	0.84164667
+q06	SAP implementation	659575-2026	12	0.84090400
+q06	SAP implementation	645981-2026	13	0.84065592
+q06	SAP implementation	657518-2026	14	0.83875054
+q06	SAP implementation	646264-2026	15	0.83727372
+q06	SAP implementation	646958-2026	16	0.83675236
+q06	SAP implementation	660047-2026	17	0.83623397
+q06	SAP implementation	644453-2026	18	0.83608890
+q06	SAP implementation	660337-2026	19	0.83545446
+q06	SAP implementation	648939-2026	20	0.83502656
+q07	renewable energy consulting	652877-2026	1	0.84922022
+q07	renewable energy consulting	654654-2026	2	0.84713537
+q07	renewable energy consulting	646166-2026	3	0.84655619
+q07	renewable energy consulting	659118-2026	4	0.83479071
+q07	renewable energy consulting	659028-2026	5	0.83433151
+q07	renewable energy consulting	657526-2026	6	0.83357257
+q07	renewable energy consulting	650058-2026	7	0.83061928
+q07	renewable energy consulting	659742-2026	8	0.82725060
+q07	renewable energy consulting	655539-2026	9	0.82644367
+q07	renewable energy consulting	658007-2026	10	0.82554358
+q07	renewable energy consulting	658536-2026	11	0.82449931
+q07	renewable energy consulting	643812-2026	12	0.82429928
+q07	renewable energy consulting	652457-2026	13	0.82429737
+q07	renewable energy consulting	654868-2026	14	0.82400751
+q07	renewable energy consulting	653403-2026	15	0.82379133
+q07	renewable energy consulting	654863-2026	16	0.82314086
+q07	renewable energy consulting	649326-2026	17	0.82271898
+q07	renewable energy consulting	647394-2026	18	0.82259989
+q07	renewable energy consulting	658040-2026	19	0.82249892
+q07	renewable energy consulting	650478-2026	20	0.82220161
+q08	construction engineering services	654924-2026	1	0.87948990
+q08	construction engineering services	649263-2026	2	0.87756413
+q08	construction engineering services	649418-2026	3	0.87679857
+q08	construction engineering services	649537-2026	4	0.87191135
+q08	construction engineering services	652627-2026	5	0.86668479
+q08	construction engineering services	650478-2026	6	0.86575401
+q08	construction engineering services	657269-2026	7	0.86480117
+q08	construction engineering services	650206-2026	8	0.86225176
+q08	construction engineering services	650196-2026	9	0.86196721
+q08	construction engineering services	649219-2026	10	0.86195415
+q08	construction engineering services	659215-2026	11	0.86171657
+q08	construction engineering services	658697-2026	12	0.86147481
+q08	construction engineering services	646419-2026	13	0.86039716
+q08	construction engineering services	660092-2026	14	0.85912871
+q08	construction engineering services	653662-2026	15	0.85755843
+q08	construction engineering services	658125-2026	16	0.85683954
+q08	construction engineering services	649132-2026	17	0.85646123
+q08	construction engineering services	656239-2026	18	0.85602593
+q08	construction engineering services	643412-2026	19	0.85554355
+q08	construction engineering services	647116-2026	20	0.85543537

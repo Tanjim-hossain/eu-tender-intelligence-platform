@@ -1,0 +1,17 @@
+query_id	query	system	retrieved_at_10	precision_at_10	recall_at_10	mrr_at_10	ndcg_at_10
+q01	software development	lexical	10	0.800000	0.320000	0.500000	0.462976
+q01	software development	semantic	10	0.800000	0.320000	1.000000	0.789709
+q02	cybersecurity services	lexical	3	0.300000	0.230769	1.000000	0.421438
+q02	cybersecurity services	semantic	10	0.700000	0.538462	1.000000	0.726516
+q03	cloud data platform	lexical	1	0.000000	0.000000	0.000000	0.039332
+q03	cloud data platform	semantic	10	0.400000	0.400000	0.500000	0.256263
+q04	railway maintenance	lexical	1	0.100000	0.062500	1.000000	0.220092
+q04	railway maintenance	semantic	10	0.600000	0.375000	1.000000	0.683547
+q05	hospital information system	lexical	0	0.000000	0.000000	0.000000	0.000000
+q05	hospital information system	semantic	10	0.600000	0.666667	1.000000	0.651012
+q06	SAP implementation	lexical	0	0.000000	0.000000	0.000000	0.000000
+q06	SAP implementation	semantic	10	0.200000	0.153846	0.500000	0.321429
+q07	renewable energy consulting	lexical	0	0.000000	0.000000	0.000000	0.000000
+q07	renewable energy consulting	semantic	10	0.600000	0.600000	1.000000	0.563031
+q08	construction engineering services	lexical	10	0.700000	0.218750	1.000000	0.710023
+q08	construction engineering services	semantic	10	1.000000	0.312500	1.000000	0.955201
