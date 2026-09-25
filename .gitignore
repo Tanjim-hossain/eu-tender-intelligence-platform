@@ -37,3 +37,8 @@ data/gold/*
 # Logs
 *.log
 logs/
+
+# dbt generated artifacts
+dbt/target/
+dbt/logs/
+dbt/dbt_packages/

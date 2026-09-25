@@ -1,0 +1,20 @@
+name: tendergraph_analytics
+version: "1.0.0"
+config-version: 2
+
+profile: tendergraph
+
+model-paths:
+  - models
+
+clean-targets:
+  - target
+  - dbt_packages
+
+models:
+  tendergraph_analytics:
+    staging:
+      +materialized: view
+
+    marts:
+      +materialized: table

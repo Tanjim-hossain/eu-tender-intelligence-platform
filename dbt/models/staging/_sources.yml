@@ -1,0 +1,36 @@
+version: 2
+
+sources:
+  - name: silver
+    description: >
+      Validated and normalized TED procurement
+      data loaded by the Python ingestion pipeline.
+
+    schema: silver
+
+    tables:
+      - name: tenders
+        description: >
+          One row per TED publication notice.
+
+        columns:
+          - name: publication_number
+            data_tests:
+              - not_null
+              - unique
+
+          - name: publication_date
+            data_tests:
+              - not_null
+
+          - name: title
+            data_tests:
+              - not_null
+
+          - name: buyer_countries
+            data_tests:
+              - not_null
+
+          - name: ingestion_run_id
+            data_tests:
+              - not_null

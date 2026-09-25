@@ -1,0 +1,26 @@
+version: 2
+
+models:
+  - name: stg_tenders
+    description: >
+      Clean dbt staging interface over the
+      PostgreSQL Silver TED tender table.
+
+    columns:
+      - name: publication_number
+        description: Unique TED publication identifier.
+        data_tests:
+          - not_null
+          - unique
+
+      - name: publication_date
+        data_tests:
+          - not_null
+
+      - name: title
+        data_tests:
+          - not_null
+
+      - name: ingestion_run_id
+        data_tests:
+          - not_null
