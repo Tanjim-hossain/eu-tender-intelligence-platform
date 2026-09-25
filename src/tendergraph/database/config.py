@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -8,7 +9,10 @@ class DatabaseSettings(BaseSettings):
 
     postgres_db: str = "tendergraph"
     postgres_user: str = "tendergraph"
-    postgres_password: str
+    postgres_password: str = Field(
+        default="",
+        repr=False,
+    )
     postgres_host: str = "localhost"
     postgres_port: int = 5433
 
@@ -17,6 +21,15 @@ class DatabaseSettings(BaseSettings):
         env_file_encoding="utf-8",
         extra="ignore",
     )
+
+    @model_validator(mode="after")
+    def validate_password(self) -> DatabaseSettings:
+        if not self.postgres_password:
+            raise ValueError(
+                "POSTGRES_PASSWORD must be set"
+            )
+
+        return self
 
     @property
     def connection_uri(self) -> str:
