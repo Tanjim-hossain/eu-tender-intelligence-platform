@@ -1,0 +1,30 @@
+from __future__ import annotations
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class DatabaseSettings(BaseSettings):
+    """Local PostgreSQL connection settings."""
+
+    postgres_db: str = "tendergraph"
+    postgres_user: str = "tendergraph"
+    postgres_password: str
+    postgres_host: str = "localhost"
+    postgres_port: int = 5433
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+    @property
+    def connection_uri(self) -> str:
+        return (
+            "postgresql://"
+            f"{self.postgres_user}:"
+            f"{self.postgres_password}@"
+            f"{self.postgres_host}:"
+            f"{self.postgres_port}/"
+            f"{self.postgres_db}"
+        )
