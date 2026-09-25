@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import date
+from datetime import UTC, date, datetime
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
 import polars as pl
@@ -18,14 +19,19 @@ class SilverTender(BaseModel):
     """Normalized analytical representation of one TED notice."""
 
     publication_number: str
-
     publication_date: date
     publication_date_raw: str
-
     notice_type: str
 
     title: str | None
     title_language: str | None
+
+    description: str | None
+    description_language: str | None
+
+    lot_descriptions: list[str]
+    lot_description_language: str | None
+    lot_description_text: str | None
 
     buyer_name: str | None
     buyer_name_language: str | None
@@ -35,6 +41,19 @@ class SilverTender(BaseModel):
 
     cpv_codes: list[str]
     first_cpv_code: str | None
+
+    procedure_type: str | None
+    contract_natures: list[str]
+
+    deadlines: list[datetime]
+    earliest_deadline: datetime | None
+    latest_deadline: datetime | None
+
+    estimated_value: Decimal | None
+    estimated_value_currency: str | None
+
+    performance_countries: list[str]
+    performance_regions: list[str]
 
     source_html_url: str | None
     source_xml_url: str | None
@@ -53,6 +72,17 @@ def _dedupe(values: list[str]) -> list[str]:
             if value.strip()
         )
     )
+
+
+def _clean_optional_string(
+    value: str | None,
+) -> str | None:
+    if value is None:
+        return None
+
+    cleaned = value.strip()
+
+    return cleaned or None
 
 
 def _select_text(
@@ -76,6 +106,32 @@ def _select_text(
     return None, None
 
 
+def _select_list_text(
+    values: dict[str, list[str]],
+    *,
+    preferred_language: str = "eng",
+) -> tuple[list[str], str | None]:
+    """Choose one deterministic language for multilingual lists."""
+
+    preferred = _dedupe(
+        values.get(
+            preferred_language,
+            [],
+        )
+    )
+
+    if preferred:
+        return preferred, preferred_language
+
+    for language in sorted(values):
+        selected = _dedupe(values[language])
+
+        if selected:
+            return selected, language
+
+    return [], None
+
+
 def _select_buyer_name(
     values: dict[str, list[str]],
     *,
@@ -83,11 +139,17 @@ def _select_buyer_name(
 ) -> tuple[str | None, str | None]:
     """Choose one normalized buyer name."""
 
-    preferred = values.get(preferred_language, [])
+    preferred = values.get(
+        preferred_language,
+        [],
+    )
 
     for buyer in preferred:
         if buyer.strip():
-            return buyer.strip(), preferred_language
+            return (
+                buyer.strip(),
+                preferred_language,
+            )
 
     for language in sorted(values):
         for buyer in values[language]:
@@ -117,6 +179,60 @@ def _select_link(
     return None
 
 
+def _parse_deadlines(
+    values: list[str],
+) -> list[datetime]:
+    """Parse TED deadline strings and normalize them to UTC."""
+
+    parsed: list[datetime] = []
+
+    for raw_value in _dedupe(values):
+        try:
+            value = datetime.fromisoformat(
+                raw_value
+            )
+        except ValueError as exc:
+            raise ValueError(
+                "Invalid TED deadline: "
+                f"{raw_value!r}"
+            ) from exc
+
+        if (
+            value.tzinfo is None
+            or value.utcoffset() is None
+        ):
+            raise ValueError(
+                "TED deadline must include "
+                "a timezone offset: "
+                f"{raw_value!r}"
+            )
+
+        parsed.append(
+            value.astimezone(UTC)
+        )
+
+    return sorted(set(parsed))
+
+
+def _parse_estimated_value(
+    value: str | None,
+) -> Decimal | None:
+    """Parse a TED financial value without floating-point loss."""
+
+    cleaned = _clean_optional_string(value)
+
+    if cleaned is None:
+        return None
+
+    try:
+        return Decimal(cleaned)
+    except InvalidOperation as exc:
+        raise ValueError(
+            "Invalid TED estimated value: "
+            f"{value!r}"
+        ) from exc
+
+
 def normalize_notice(
     notice: TedNotice,
     *,
@@ -126,6 +242,28 @@ def normalize_notice(
 
     title, title_language = _select_text(
         notice.notice_title
+    )
+
+    description, description_language = (
+        _select_text(
+            notice.description_proc
+        )
+    )
+
+    lot_descriptions, lot_language = (
+        _select_list_text(
+            notice.description_lot,
+            preferred_language=(
+                description_language
+                or "eng"
+            ),
+        )
+    )
+
+    lot_description_text = (
+        "\n".join(lot_descriptions)
+        if lot_descriptions
+        else None
     )
 
     buyer_name, buyer_language = (
@@ -140,6 +278,41 @@ def normalize_notice(
 
     cpv_codes = _dedupe(
         notice.classification_cpv
+    )
+
+    contract_natures = _dedupe(
+        notice.contract_nature
+    )
+
+    deadlines = _parse_deadlines(
+        notice.deadline
+    )
+
+    performance_countries = _dedupe(
+        notice.place_of_performance_country_proc
+    )
+
+    performance_regions = _dedupe(
+        notice.place_of_performance_subdiv_proc
+    )
+
+    estimated_value = _parse_estimated_value(
+        notice.estimated_value_proc
+    )
+
+    estimated_value_currency = (
+        _clean_optional_string(
+            notice.estimated_value_cur_proc
+        )
+    )
+
+    if estimated_value_currency is not None:
+        estimated_value_currency = (
+            estimated_value_currency.upper()
+        )
+
+    procedure_type = _clean_optional_string(
+        notice.procedure_type
     )
 
     raw_date = notice.publication_date
@@ -173,6 +346,17 @@ def normalize_notice(
         notice_type=notice.notice_type,
         title=title,
         title_language=title_language,
+        description=description,
+        description_language=(
+            description_language
+        ),
+        lot_descriptions=lot_descriptions,
+        lot_description_language=(
+            lot_language
+        ),
+        lot_description_text=(
+            lot_description_text
+        ),
         buyer_name=buyer_name,
         buyer_name_language=buyer_language,
         buyer_countries=buyer_countries,
@@ -186,6 +370,29 @@ def normalize_notice(
             cpv_codes[0]
             if cpv_codes
             else None
+        ),
+        procedure_type=procedure_type,
+        contract_natures=contract_natures,
+        deadlines=deadlines,
+        earliest_deadline=(
+            deadlines[0]
+            if deadlines
+            else None
+        ),
+        latest_deadline=(
+            deadlines[-1]
+            if deadlines
+            else None
+        ),
+        estimated_value=estimated_value,
+        estimated_value_currency=(
+            estimated_value_currency
+        ),
+        performance_countries=(
+            performance_countries
+        ),
+        performance_regions=(
+            performance_regions
         ),
         source_html_url=_select_link(
             html_links,
@@ -233,6 +440,7 @@ def build_silver_dataframe(
         )
 
         expected_hash = page["sha256"]
+
         actual_hash = _sha256(data_path)
 
         if actual_hash != expected_hash:
@@ -272,8 +480,7 @@ def build_silver_dataframe(
         )
 
     if (
-        frame["publication_number"]
-        .n_unique()
+        frame["publication_number"].n_unique()
         != frame.height
     ):
         raise ValueError(
