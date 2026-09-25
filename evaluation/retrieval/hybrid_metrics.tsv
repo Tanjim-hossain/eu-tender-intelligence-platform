@@ -1,0 +1,17 @@
+query_id	query	system	precision_at_10	recall_at_10	mrr_at_10	ndcg_at_10
+q01	software development	rrf_strict	0.800000	0.320000	1.000000	0.681341
+q01	software development	rrf_broad	0.900000	0.360000	1.000000	0.667307
+q02	cybersecurity services	rrf_strict	0.800000	0.615385	1.000000	0.776363
+q02	cybersecurity services	rrf_broad	0.700000	0.538462	1.000000	0.698491
+q03	cloud data platform	rrf_strict	0.400000	0.400000	0.333333	0.249707
+q03	cloud data platform	rrf_broad	0.500000	0.500000	1.000000	0.473254
+q04	railway maintenance	rrf_strict	0.600000	0.375000	1.000000	0.683547
+q04	railway maintenance	rrf_broad	0.500000	0.312500	1.000000	0.586116
+q05	hospital information system	rrf_strict	0.600000	0.666667	1.000000	0.651012
+q05	hospital information system	rrf_broad	0.400000	0.444444	0.500000	0.360011
+q06	SAP implementation	rrf_strict	0.200000	0.153846	0.500000	0.321429
+q06	SAP implementation	rrf_broad	0.600000	0.461538	1.000000	0.688059
+q07	renewable energy consulting	rrf_strict	0.600000	0.600000	1.000000	0.563031
+q07	renewable energy consulting	rrf_broad	0.500000	0.500000	1.000000	0.519516
+q08	construction engineering services	rrf_strict	0.800000	0.250000	1.000000	0.864315
+q08	construction engineering services	rrf_broad	1.000000	0.312500	1.000000	1.000000
