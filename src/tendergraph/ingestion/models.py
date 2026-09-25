@@ -13,12 +13,16 @@ class TedNotice(BaseModel):
         extra="allow",
     )
 
-    notice_type: str = Field(alias="notice-type")
-    publication_number: str = Field(
-        alias="publication-number"
+    notice_type: str = Field(
+        alias="notice-type",
     )
+
+    publication_number: str = Field(
+        alias="publication-number",
+    )
+
     publication_date: str = Field(
-        alias="publication-date"
+        alias="publication-date",
     )
 
     classification_cpv: list[str] = Field(
@@ -39,6 +43,51 @@ class TedNotice(BaseModel):
     notice_title: dict[str, str] = Field(
         default_factory=dict,
         alias="notice-title",
+    )
+
+    description_proc: dict[str, str] = Field(
+        default_factory=dict,
+        alias="description-proc",
+    )
+
+    description_lot: dict[str, list[str]] = Field(
+        default_factory=dict,
+        alias="description-lot",
+    )
+
+    procedure_type: str | None = Field(
+        default=None,
+        alias="procedure-type",
+    )
+
+    contract_nature: list[str] = Field(
+        default_factory=list,
+        alias="contract-nature",
+    )
+
+    deadline: list[str] = Field(
+        default_factory=list,
+        alias="deadline",
+    )
+
+    estimated_value_proc: str | None = Field(
+        default=None,
+        alias="estimated-value-proc",
+    )
+
+    estimated_value_cur_proc: str | None = Field(
+        default=None,
+        alias="estimated-value-cur-proc",
+    )
+
+    place_of_performance_country_proc: list[str] = Field(
+        default_factory=list,
+        alias="place-of-performance-country-proc",
+    )
+
+    place_of_performance_subdiv_proc: list[str] = Field(
+        default_factory=list,
+        alias="place-of-performance-subdiv-proc",
     )
 
     links: dict[str, dict[str, str]] = Field(

@@ -14,6 +14,15 @@ FIELDS = [
     "buyer-country",
     "classification-cpv",
     "notice-type",
+    "description-proc",
+    "description-lot",
+    "procedure-type",
+    "contract-nature",
+    "deadline",
+    "estimated-value-proc",
+    "estimated-value-cur-proc",
+    "place-of-performance-country-proc",
+    "place-of-performance-subdiv-proc",
 ]
 
 QUERY = (
