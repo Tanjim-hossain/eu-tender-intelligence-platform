@@ -17,6 +17,8 @@ def reciprocal_rank_fusion(
     *,
     rrf_k: int = 60,
     limit: int = 10,
+    lexical_weight: float = 1.0,
+    semantic_weight: float = 1.0,
 ) -> list[HybridHit]:
     if rrf_k <= 0:
         raise ValueError(
@@ -26,6 +28,16 @@ def reciprocal_rank_fusion(
     if limit <= 0:
         raise ValueError(
             "limit must be positive"
+        )
+
+    if lexical_weight <= 0:
+        raise ValueError(
+            "lexical_weight must be positive"
+        )
+
+    if semantic_weight <= 0:
+        raise ValueError(
+            "semantic_weight must be positive"
         )
 
     lexical_ranks = {
@@ -67,12 +79,12 @@ def reciprocal_rank_fusion(
         score = 0.0
 
         if lexical_rank is not None:
-            score += 1.0 / (
+            score += lexical_weight / (
                 rrf_k + lexical_rank
             )
 
         if semantic_rank is not None:
-            score += 1.0 / (
+            score += semantic_weight / (
                 rrf_k + semantic_rank
             )
 

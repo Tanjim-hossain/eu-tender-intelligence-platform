@@ -193,6 +193,15 @@ def main() -> None:
                     limit=K,
                 )
             ),
+            "rrf_broad_weighted": (
+                reciprocal_rank_fusion(
+                    broad,
+                    semantic_run,
+                    limit=K,
+                    lexical_weight=1.0,
+                    semantic_weight=1.25,
+                )
+            ),
         }
 
         for system, hits in systems.items():
@@ -270,6 +279,7 @@ def main() -> None:
     for system in (
         "rrf_strict",
         "rrf_broad",
+        "rrf_broad_weighted",
     ):
         rows = [
             row

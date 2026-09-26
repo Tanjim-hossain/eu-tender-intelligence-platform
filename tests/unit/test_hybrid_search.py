@@ -70,3 +70,40 @@ def test_rrf_rejects_invalid_parameters() -> None:
             ["B"],
             limit=0,
         )
+
+
+def test_rrf_supports_semantic_weighting() -> None:
+    hits = reciprocal_rank_fusion(
+        lexical=["LEXICAL"],
+        semantic=["SEMANTIC"],
+        lexical_weight=1.0,
+        semantic_weight=1.25,
+        limit=2,
+    )
+
+    assert (
+        hits[0].publication_number
+        == "SEMANTIC"
+    )
+
+
+def test_rrf_rejects_invalid_weights() -> None:
+    with pytest.raises(
+        ValueError,
+        match="lexical_weight",
+    ):
+        reciprocal_rank_fusion(
+            ["A"],
+            ["B"],
+            lexical_weight=0,
+        )
+
+    with pytest.raises(
+        ValueError,
+        match="semantic_weight",
+    ):
+        reciprocal_rank_fusion(
+            ["A"],
+            ["B"],
+            semantic_weight=0,
+        )
