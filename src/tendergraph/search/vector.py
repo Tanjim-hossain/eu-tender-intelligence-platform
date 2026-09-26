@@ -470,6 +470,28 @@ def search_vector_tenders(
     model_name: str,
     limit: int = 10,
 ) -> list[VectorSearchResult]:
+    """Run vector retrieval with a temporary connection."""
+
+    with psycopg.connect(
+        settings.connection_uri
+    ) as connection:
+        return search_vector_tenders_with_connection(
+            connection,
+            query_vector=query_vector,
+            model_name=model_name,
+            limit=limit,
+        )
+
+
+def search_vector_tenders_with_connection(
+    connection: psycopg.Connection,
+    *,
+    query_vector: np.ndarray,
+    model_name: str,
+    limit: int = 10,
+) -> list[VectorSearchResult]:
+    """Run vector retrieval using an existing connection."""
+
     cleaned_model = model_name.strip()
 
     if not cleaned_model:
@@ -487,18 +509,12 @@ def search_vector_tenders(
         query_vector
     )
 
-    with psycopg.connect(
-        settings.connection_uri
-    ) as connection, connection.cursor() as cursor:
+    with connection.cursor() as cursor:
         cursor.execute(
             VECTOR_SEARCH_SQL,
             {
-                "query_vector": (
-                    query_literal
-                ),
-                "model_name": (
-                    cleaned_model
-                ),
+                "query_vector": query_literal,
+                "model_name": cleaned_model,
                 "limit": limit,
             },
         )
@@ -518,9 +534,7 @@ def search_vector_tenders(
             earliest_deadline=row[8],
             source_html_url=row[9],
             distance=float(row[10]),
-            score=1.0 - float(
-                row[10]
-            ),
+            score=1.0 - float(row[10]),
         )
         for row in rows
     ]

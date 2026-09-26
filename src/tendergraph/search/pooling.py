@@ -153,18 +153,34 @@ def fetch_candidate_pool(
     query: str,
     limit: int = 20,
 ) -> list[PoolCandidate]:
+    """Fetch lexical candidates with a temporary connection."""
+
+    with psycopg.connect(
+        settings.connection_uri
+    ) as connection:
+        return fetch_candidate_pool_with_connection(
+            connection,
+            query=query,
+            limit=limit,
+        )
+
+
+def fetch_candidate_pool_with_connection(
+    connection: psycopg.Connection,
+    *,
+    query: str,
+    limit: int = 20,
+) -> list[PoolCandidate]:
+    """Fetch lexical candidates using an existing connection."""
+
     if not 1 <= limit <= 100:
         raise ValueError(
             "Pool limit must be between 1 and 100"
         )
 
-    variants = build_query_variants(
-        query
-    )
+    variants = build_query_variants(query)
 
-    with psycopg.connect(
-        settings.connection_uri
-    ) as connection, connection.cursor() as cursor:
+    with connection.cursor() as cursor:
         cursor.execute(
             POOL_SQL,
             {

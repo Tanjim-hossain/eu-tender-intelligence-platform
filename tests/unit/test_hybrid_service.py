@@ -31,3 +31,13 @@ def test_invalid_depth_contract() -> None:
                 "Retrieval depth must be "
                 "between limit and 100"
             )
+
+
+def test_production_fusion_weights() -> None:
+    from tendergraph.search.service import (
+        LEXICAL_WEIGHT,
+        SEMANTIC_WEIGHT,
+    )
+
+    assert LEXICAL_WEIGHT == 1.0
+    assert SEMANTIC_WEIGHT == 1.25

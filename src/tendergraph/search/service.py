@@ -6,6 +6,7 @@ from decimal import Decimal
 
 import numpy as np
 import psycopg
+from psycopg_pool import ConnectionPool
 from sentence_transformers import (
     SentenceTransformer,
 )
@@ -17,17 +18,20 @@ from tendergraph.search.hybrid import (
     reciprocal_rank_fusion,
 )
 from tendergraph.search.pooling import (
-    fetch_candidate_pool,
+    fetch_candidate_pool_with_connection,
 )
 from tendergraph.search.semantic import (
     MODEL_NAME,
 )
 from tendergraph.search.vector import (
-    search_vector_tenders,
+    search_vector_tenders_with_connection,
 )
 
 DEFAULT_RETRIEVAL_DEPTH = 20
 DEFAULT_RESULT_LIMIT = 10
+
+LEXICAL_WEIGHT = 1.0
+SEMANTIC_WEIGHT = 1.25
 
 DETAIL_SQL = """
 SELECT
@@ -72,12 +76,19 @@ class HybridSearchService:
         settings: DatabaseSettings,
         *,
         model_name: str = MODEL_NAME,
+        pool: ConnectionPool | None = None,
+        model: SentenceTransformer | None = None,
     ) -> None:
         self._settings = settings
         self._model_name = model_name
+        self._pool = pool
 
-        self._model = SentenceTransformer(
-            model_name
+        self._model = (
+            model
+            if model is not None
+            else SentenceTransformer(
+                model_name
+            )
         )
 
     def encode_query(
@@ -140,9 +151,39 @@ class HybridSearchService:
             cleaned
         )
 
+        if self._pool is not None:
+            with self._pool.connection() as connection:
+                return self._search_with_connection(
+                    connection,
+                    query=cleaned,
+                    query_vector=query_vector,
+                    limit=limit,
+                    retrieval_depth=retrieval_depth,
+                )
+
+        with psycopg.connect(
+            self._settings.connection_uri
+        ) as connection:
+            return self._search_with_connection(
+                connection,
+                query=cleaned,
+                query_vector=query_vector,
+                limit=limit,
+                retrieval_depth=retrieval_depth,
+            )
+
+    def _search_with_connection(
+        self,
+        connection: psycopg.Connection,
+        *,
+        query: str,
+        query_vector: np.ndarray,
+        limit: int,
+        retrieval_depth: int,
+    ) -> list[HybridSearchResult]:
         semantic_results = (
-            search_vector_tenders(
-                self._settings,
+            search_vector_tenders_with_connection(
+                connection,
                 query_vector=query_vector,
                 model_name=self._model_name,
                 limit=retrieval_depth,
@@ -150,31 +191,29 @@ class HybridSearchService:
         )
 
         lexical_results = (
-            fetch_candidate_pool(
-                self._settings,
-                query=cleaned,
+            fetch_candidate_pool_with_connection(
+                connection,
+                query=query,
                 limit=retrieval_depth,
             )
         )
 
         semantic_ids = [
             result.publication_number
-            for result
-            in semantic_results
+            for result in semantic_results
         ]
 
         lexical_ids = [
             result.publication_number
-            for result
-            in lexical_results
+            for result in lexical_results
         ]
 
         fused = reciprocal_rank_fusion(
             lexical_ids,
             semantic_ids,
             limit=limit,
-            lexical_weight=1.0,
-            semantic_weight=1.25,
+            lexical_weight=LEXICAL_WEIGHT,
+            semantic_weight=SEMANTIC_WEIGHT,
         )
 
         if not fused:
@@ -183,8 +222,7 @@ class HybridSearchService:
         semantic_scores = {
             result.publication_number:
                 result.score
-            for result
-            in semantic_results
+            for result in semantic_results
         }
 
         publication_numbers = [
@@ -193,7 +231,8 @@ class HybridSearchService:
         ]
 
         details = self._fetch_details(
-            publication_numbers
+            connection,
+            publication_numbers,
         )
 
         return [
@@ -229,12 +268,8 @@ class HybridSearchService:
                     hit.publication_number
                 ][8],
                 rrf_score=hit.rrf_score,
-                lexical_rank=(
-                    hit.lexical_rank
-                ),
-                semantic_rank=(
-                    hit.semantic_rank
-                ),
+                lexical_rank=hit.lexical_rank,
+                semantic_rank=hit.semantic_rank,
                 semantic_score=(
                     semantic_scores.get(
                         hit.publication_number
@@ -246,6 +281,7 @@ class HybridSearchService:
 
     def _fetch_details(
         self,
+        connection: psycopg.Connection,
         publication_numbers: list[str],
     ) -> dict[
         str,
@@ -261,9 +297,7 @@ class HybridSearchService:
             str,
         ],
     ]:
-        with psycopg.connect(
-            self._settings.connection_uri
-        ) as connection, connection.cursor() as cursor:
+        with connection.cursor() as cursor:
             cursor.execute(
                 DETAIL_SQL,
                 {
