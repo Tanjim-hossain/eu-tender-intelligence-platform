@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Self
+from typing import Literal, Self
 
 from pydantic import (
     BaseModel,
@@ -11,6 +11,8 @@ from pydantic import (
     field_validator,
     model_validator,
 )
+
+from tendergraph.rag.settings import AnswerMode
 
 
 class SearchRequest(BaseModel):
@@ -91,3 +93,53 @@ class HealthResponse(BaseModel):
     status: str
     database: str
     model: str
+
+
+class AskRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    question: str = Field(min_length=1, max_length=2000)
+    query: str | None = Field(default=None, min_length=1, max_length=500)
+    evidence_limit: int = Field(default=5, ge=1, le=10)
+    retrieval_depth: int = Field(default=20, ge=1, le=100)
+
+    @field_validator("question", "query")
+    @classmethod
+    def clean_text(cls, value: str | None) -> str | None:
+        if value is None:
+            return value
+        cleaned = " ".join(value.split())
+        if not cleaned:
+            raise ValueError("Question and query must not be blank")
+        return cleaned
+
+    @model_validator(mode="after")
+    def check_depth(self) -> Self:
+        if self.retrieval_depth < self.evidence_limit:
+            raise ValueError("retrieval_depth must cover evidence_limit")
+        return self
+
+
+class AnswerSource(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    citation_id: str
+    publication_number: str
+    publication_date: date
+    title: str
+    buyer_name: str | None
+    buyer_country: str
+    estimated_value: Decimal | None
+    estimated_value_currency: str | None
+    earliest_deadline: datetime | None
+    source_html_url: str
+
+
+class AskResponse(BaseModel):
+    question: str
+    mode: AnswerMode
+    status: Literal["evidence_only", "answered", "no_results"]
+    answer: str
+    citations: list[str]
+    sources: list[AnswerSource]
+    context_truncated: bool

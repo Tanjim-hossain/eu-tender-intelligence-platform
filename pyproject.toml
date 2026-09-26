@@ -1,7 +1,7 @@
 [project]
 name = "tendergraph"
 version = "0.1.0"
-description = "Add your description here"
+description = "European tender intelligence with hybrid search and evidence-backed answers"
 readme = "README.md"
 authors = [
     { name = "Tanjim-hossain", email = "tanjim.hossain@student.uhasselt.be" }
@@ -11,6 +11,7 @@ dependencies = [
     "fastapi>=0.141.1",
     "httpx>=0.28.1",
     "numpy>=2.5.3",
+    "openai>=3.19.2",
     "polars>=1.44.2",
     "psycopg-pool>=3.3.3",
     "psycopg[binary]>=3.3.6",

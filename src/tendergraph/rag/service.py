@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+
 from tendergraph.rag.answer import (
     GroundedAnswer,
     validate_grounded_answer,
@@ -38,6 +40,12 @@ class GroundedRAGService:
             item.citation_id
             for item in evidence
         }
+
+        if len(allowed_citations) != len(evidence) or any(
+            re.fullmatch(r"T[1-9]\d*", item.citation_id) is None
+            for item in evidence
+        ):
+            raise ValueError("Evidence citation IDs must be unique T1-style IDs")
 
         user_prompt = build_user_prompt(
             question=question,
