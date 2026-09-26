@@ -48,3 +48,6 @@ dbt/.user.yml
 
 # Local semantic search indexes
 data/search/
+
+# Local database backups
+data/backups/
