@@ -1,0 +1,17 @@
+query_id	query	system	precision_at_10	recall_at_10	mrr_at_10	ndcg_at_10	rerank_latency_ms
+q01	software development	weighted_rrf	0.800000	0.320000	1.000000	0.709178	0.000
+q01	software development	cross_encoder	0.800000	0.320000	1.000000	0.752082	1104.130
+q02	cybersecurity services	weighted_rrf	0.700000	0.538462	1.000000	0.754098	0.000
+q02	cybersecurity services	cross_encoder	0.700000	0.538462	1.000000	0.741230	638.413
+q03	cloud data platform	weighted_rrf	0.500000	0.500000	0.500000	0.430095	0.000
+q03	cloud data platform	cross_encoder	0.400000	0.400000	0.200000	0.302967	719.719
+q04	railway maintenance	weighted_rrf	0.600000	0.375000	1.000000	0.683547	0.000
+q04	railway maintenance	cross_encoder	1.000000	0.625000	1.000000	1.000000	524.938
+q05	hospital information system	weighted_rrf	0.600000	0.666667	1.000000	0.651012	0.000
+q05	hospital information system	cross_encoder	0.600000	0.666667	1.000000	0.714690	707.455
+q06	SAP implementation	weighted_rrf	0.500000	0.384615	1.000000	0.655760	0.000
+q06	SAP implementation	cross_encoder	0.500000	0.384615	0.500000	0.617725	552.156
+q07	renewable energy consulting	weighted_rrf	0.600000	0.600000	1.000000	0.621334	0.000
+q07	renewable energy consulting	cross_encoder	0.600000	0.600000	1.000000	0.514415	523.619
+q08	construction engineering services	weighted_rrf	1.000000	0.312500	1.000000	0.960325	0.000
+q08	construction engineering services	cross_encoder	1.000000	0.312500	1.000000	1.000000	557.739
