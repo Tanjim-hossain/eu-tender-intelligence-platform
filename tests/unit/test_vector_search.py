@@ -121,3 +121,33 @@ def test_validate_vector_index_rejects_duplicates() -> None:
             embeddings,
             metadata,
         )
+
+
+def test_validate_vector_index_rejects_empty_batch() -> None:
+    publications = np.asarray(
+        [],
+        dtype=str,
+    )
+
+    embeddings = np.empty(
+        (0, 384),
+        dtype=np.float32,
+    )
+
+    metadata = VectorIndexMetadata(
+        model_name="example/model",
+        ingestion_run_id="run-1",
+        dimensions=384,
+        normalized=True,
+        rows=0,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="positive",
+    ):
+        validate_vector_index(
+            publications,
+            embeddings,
+            metadata,
+        )

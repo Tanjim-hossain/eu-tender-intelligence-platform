@@ -109,7 +109,7 @@ def main() -> None:
 
     settings = DatabaseSettings()
 
-    loaded = load_vector_index(
+    summary = load_vector_index(
         settings,
         publication_numbers=(
             publication_numbers
@@ -120,10 +120,23 @@ def main() -> None:
 
     print()
     print(
-        f"Loaded:     {loaded}"
+        f"Batch rows:  "
+        f"{summary.batch_rows}"
     )
     print(
-        "Status:     complete"
+        f"Inserted:    "
+        f"{summary.inserted_rows}"
+    )
+    print(
+        f"Updated:     "
+        f"{summary.updated_rows}"
+    )
+    print(
+        f"Database:    "
+        f"{summary.database_rows}"
+    )
+    print(
+        "Status:      complete"
     )
 
 

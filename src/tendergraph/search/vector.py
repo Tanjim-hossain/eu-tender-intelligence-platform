@@ -106,6 +106,14 @@ class VectorIndexMetadata:
 
 
 @dataclass(frozen=True, slots=True)
+class VectorLoadSummary:
+    batch_rows: int
+    inserted_rows: int
+    updated_rows: int
+    database_rows: int
+
+
+@dataclass(frozen=True, slots=True)
 class VectorSearchResult:
     publication_number: str
     publication_date: date
@@ -192,6 +200,11 @@ def validate_vector_index(
             "match metadata"
         )
 
+    if metadata.rows <= 0:
+        raise ValueError(
+            "Embedding row count must be positive"
+        )
+
     if metadata.dimensions != (
         EMBEDDING_DIMENSIONS
     ):
@@ -243,7 +256,9 @@ def load_vector_index(
     publication_numbers: np.ndarray,
     embeddings: np.ndarray,
     metadata: VectorIndexMetadata,
-) -> int:
+) -> VectorLoadSummary:
+    """Upsert one embedding batch without deleting other rows."""
+
     validate_vector_index(
         publication_numbers,
         embeddings,
@@ -259,62 +274,86 @@ def load_vector_index(
         settings.connection_uri
     ) as connection, connection.cursor() as cursor:
         cursor.execute(
+            VECTOR_SCHEMA_SQL
+        )
+
+        cursor.execute(
             """
             SELECT
                 publication_number,
                 ingestion_run_id
-            FROM silver.tenders;
-            """
+            FROM silver.tenders
+            WHERE publication_number = ANY(
+                %(publication_ids)s
+            );
+            """,
+            {
+                "publication_ids": publication_ids,
+            },
         )
 
         silver_rows = cursor.fetchall()
 
-        silver_publications = {
-            row[0]
+        silver_by_publication = {
+            str(row[0]): str(row[1])
             for row in silver_rows
         }
 
-        local_publications = set(
-            publication_ids
+        missing_publications = sorted(
+            set(publication_ids)
+            - set(silver_by_publication)
         )
 
-        if silver_publications != (
-            local_publications
-        ):
-            missing_in_db = sorted(
-                local_publications
-                - silver_publications
-            )
-
-            missing_locally = sorted(
-                silver_publications
-                - local_publications
-            )
-
+        if missing_publications:
             raise RuntimeError(
-                "Silver/embedding publication "
-                "sets differ. "
-                f"Missing in DB: "
-                f"{missing_in_db[:5]}; "
-                f"Missing locally: "
-                f"{missing_locally[:5]}"
+                "Embedding batch contains notices "
+                "missing from Silver: "
+                f"{missing_publications[:5]}"
             )
 
-        silver_run_ids = {
-            row[1]
-            for row in silver_rows
-        }
+        mismatched_run_ids = sorted(
+            publication_number
+            for publication_number in publication_ids
+            if silver_by_publication[
+                publication_number
+            ]
+            != metadata.ingestion_run_id
+        )
 
-        if silver_run_ids != {
-            metadata.ingestion_run_id
-        }:
+        if mismatched_run_ids:
             raise RuntimeError(
-                "Silver ingestion run does not "
-                "match semantic index metadata"
+                "Embedding batch ingestion run does "
+                "not match Silver rows: "
+                f"{mismatched_run_ids[:5]}"
             )
 
         cursor.execute(
-            VECTOR_SCHEMA_SQL
+            """
+            SELECT publication_number
+            FROM search.tender_embeddings
+            WHERE
+                model_name = %(model_name)s
+                AND publication_number = ANY(
+                    %(publication_ids)s
+                );
+            """,
+            {
+                "model_name": metadata.model_name,
+                "publication_ids": publication_ids,
+            },
+        )
+
+        existing_publications = {
+            str(row[0])
+            for row in cursor.fetchall()
+        }
+
+        inserted_rows = (
+            len(publication_ids)
+            - len(existing_publications)
+        )
+        updated_rows = len(
+            existing_publications
         )
 
         cursor.execute(
@@ -332,7 +371,7 @@ def load_vector_index(
                 %(dimensions)s,
                 %(normalized)s,
                 %(ingestion_run_id)s,
-                %(source_rows)s,
+                %(batch_rows)s,
                 NOW()
             )
             ON CONFLICT (model_name)
@@ -341,44 +380,38 @@ def load_vector_index(
                 normalized = EXCLUDED.normalized,
                 ingestion_run_id =
                     EXCLUDED.ingestion_run_id,
-                source_rows =
-                    EXCLUDED.source_rows,
                 loaded_at = NOW();
             """,
             {
-                "model_name": (
-                    metadata.model_name
-                ),
-                "dimensions": (
-                    metadata.dimensions
-                ),
-                "normalized": (
-                    metadata.normalized
-                ),
+                "model_name": metadata.model_name,
+                "dimensions": metadata.dimensions,
+                "normalized": metadata.normalized,
                 "ingestion_run_id": (
                     metadata.ingestion_run_id
                 ),
-                "source_rows": (
-                    metadata.rows
-                ),
+                "batch_rows": metadata.rows,
             },
         )
 
         cursor.execute(
+            f"""
+            CREATE TEMP TABLE
+                _tendergraph_embedding_stage (
+                    publication_number TEXT
+                        PRIMARY KEY,
+                    model_name TEXT NOT NULL,
+                    ingestion_run_id TEXT NOT NULL,
+                    embedding VECTOR(
+                        {EMBEDDING_DIMENSIONS}
+                    ) NOT NULL
+                )
+            ON COMMIT DROP;
             """
-            DELETE FROM search.tender_embeddings
-            WHERE model_name = %(model_name)s;
-            """,
-            {
-                "model_name": (
-                    metadata.model_name
-                ),
-            },
         )
 
         with cursor.copy(
             """
-            COPY search.tender_embeddings (
+            COPY _tendergraph_embedding_stage (
                 publication_number,
                 model_name,
                 ingestion_run_id,
@@ -389,7 +422,6 @@ def load_vector_index(
             """
         ) as copy:
             buffer = io.StringIO()
-
             writer = csv.writer(
                 buffer,
                 lineterminator="\n",
@@ -408,9 +440,7 @@ def load_vector_index(
                         publication_number,
                         metadata.model_name,
                         metadata.ingestion_run_id,
-                        vector_literal(
-                            vector
-                        ),
+                        vector_literal(vector),
                     ]
                 )
 
@@ -419,7 +449,79 @@ def load_vector_index(
                 )
 
         cursor.execute(
+            """
+            INSERT INTO search.tender_embeddings (
+                publication_number,
+                model_name,
+                ingestion_run_id,
+                embedding,
+                loaded_at
+            )
+            SELECT
+                publication_number,
+                model_name,
+                ingestion_run_id,
+                embedding,
+                NOW()
+            FROM _tendergraph_embedding_stage
+            ON CONFLICT (
+                publication_number,
+                model_name
+            )
+            DO UPDATE SET
+                ingestion_run_id =
+                    EXCLUDED.ingestion_run_id,
+                embedding = EXCLUDED.embedding,
+                loaded_at = NOW();
+            """
+        )
+
+        if cursor.rowcount != metadata.rows:
+            raise RuntimeError(
+                "Embedding UPSERT affected an "
+                "unexpected number of rows: "
+                f"{cursor.rowcount} != "
+                f"{metadata.rows}"
+            )
+
+        cursor.execute(
             VECTOR_INDEX_SQL
+        )
+
+        cursor.execute(
+            """
+            SELECT COUNT(*)
+            FROM search.tender_embeddings
+            WHERE model_name = %(model_name)s;
+            """,
+            {
+                "model_name": metadata.model_name,
+            },
+        )
+
+        count_result = cursor.fetchone()
+
+        if count_result is None:
+            raise RuntimeError(
+                "Unable to verify vector load"
+            )
+
+        database_rows = int(
+            count_result[0]
+        )
+
+        cursor.execute(
+            """
+            UPDATE search.embedding_models
+            SET
+                source_rows = %(source_rows)s,
+                loaded_at = NOW()
+            WHERE model_name = %(model_name)s;
+            """,
+            {
+                "source_rows": database_rows,
+                "model_name": metadata.model_name,
+            },
         )
 
         cursor.execute(
@@ -428,39 +530,12 @@ def load_vector_index(
             """
         )
 
-        cursor.execute(
-            """
-            SELECT COUNT(*)
-            FROM search.tender_embeddings
-            WHERE model_name =
-                %(model_name)s;
-            """,
-            {
-                "model_name": (
-                    metadata.model_name
-                ),
-            },
-        )
-
-        loaded_count = cursor.fetchone()
-
-        if loaded_count is None:
-            raise RuntimeError(
-                "Unable to verify vector load"
-            )
-
-        count = int(
-            loaded_count[0]
-        )
-
-        if count != metadata.rows:
-            raise RuntimeError(
-                "Loaded vector count mismatch: "
-                f"expected {metadata.rows}, "
-                f"found {count}"
-            )
-
-    return count
+    return VectorLoadSummary(
+        batch_rows=metadata.rows,
+        inserted_rows=inserted_rows,
+        updated_rows=updated_rows,
+        database_rows=database_rows,
+    )
 
 
 def search_vector_tenders(
