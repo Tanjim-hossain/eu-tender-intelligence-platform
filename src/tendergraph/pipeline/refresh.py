@@ -26,7 +26,7 @@ from tendergraph.processing.silver_run import (
 from tendergraph.search.embedding_refresh import (
     EmbeddingRefreshSummary,
     SentenceEncoder,
-    refresh_tender_embeddings,
+    reconcile_tender_embeddings,
 )
 from tendergraph.storage.iteration_run import (
     IterationRunWriter,
@@ -156,36 +156,12 @@ def run_incremental_refresh(
         active_settings,
     )
 
-    changed_publication_numbers = (
-        silver_load
-        .changed_publication_numbers
-    )
-
     if on_stage_start is not None:
         on_stage_start("embeddings")
 
-    if changed_publication_numbers:
-        embeddings = (
-            refresh_tender_embeddings(
-                active_settings,
-                changed_publication_numbers,
-                batch_size=(
-                    embedding_batch_size
-                ),
-                encoder=encoder,
-            )
-        )
-    else:
-        embeddings = (
-            EmbeddingRefreshSummary(
-                requested_rows=0,
-                embedded_rows=0,
-                inserted_rows=0,
-                updated_rows=0,
-                database_rows=None,
-                ingestion_run_id=None,
-            )
-        )
+    embeddings = reconcile_tender_embeddings(
+        active_settings, batch_size=embedding_batch_size, encoder=encoder,
+    )
 
     return IncrementalRefreshSummary(
         ingestion=ingestion,

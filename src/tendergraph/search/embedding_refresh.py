@@ -17,6 +17,7 @@ from tendergraph.search.vector import (
     EMBEDDING_DIMENSIONS,
     VectorIndexMetadata,
     VectorLoadSummary,
+    ensure_vector_schema,
     load_vector_index,
 )
 
@@ -361,4 +362,71 @@ def refresh_tender_embeddings(
             vector_summary.database_rows
         ),
         ingestion_run_id=run_id,
+    )
+
+
+def pending_embedding_groups(
+    settings: DatabaseSettings, *, model_name: str = MODEL_NAME,
+) -> tuple[dict[str, list[str]], int]:
+    """Find durable work left after a failed embedding stage, grouped by Silver run."""
+    ensure_vector_schema(settings)
+    with psycopg.connect(settings.connection_uri) as connection, connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT s.ingestion_run_id, s.publication_number
+            FROM silver.tenders AS s
+            LEFT JOIN search.tender_embeddings AS e
+              ON e.publication_number = s.publication_number
+             AND e.model_name = %(model_name)s
+            WHERE e.publication_number IS NULL
+               OR e.ingestion_run_id IS DISTINCT FROM s.ingestion_run_id
+            ORDER BY s.ingestion_run_id, s.publication_number
+            """,
+            {"model_name": model_name},
+        )
+        groups: dict[str, list[str]] = {}
+        for run_id, publication_number in cursor.fetchall():
+            groups.setdefault(str(run_id), []).append(str(publication_number))
+        cursor.execute(
+            "SELECT COUNT(*) FROM search.tender_embeddings WHERE model_name = %s",
+            (model_name,),
+        )
+        row = cursor.fetchone()
+        if row is None:
+            raise RuntimeError("Unable to count embeddings")
+        return groups, int(row[0])
+
+
+def reconcile_tender_embeddings(
+    settings: DatabaseSettings, *, batch_size: int = 32,
+    encoder: SentenceEncoder | None = None,
+) -> EmbeddingRefreshSummary:
+    """Repair missing/stale vectors, including work committed before an earlier failure.
+
+    Silver's run ID changes only on material change; comparing it to the vector's
+    run ID makes this retryable without deleting any unrelated embedding.
+    Run refreshes serially: this is reconciliation, not a distributed work queue.
+    """
+    if batch_size <= 0:
+        raise ValueError("batch_size must be positive")
+    groups, database_rows = pending_embedding_groups(settings)
+    requested = inserted = updated = embedded = 0
+    active_encoder = encoder
+    if groups and active_encoder is None:
+        active_encoder = cast(SentenceEncoder, SentenceTransformer(MODEL_NAME))
+    for ids in groups.values():
+        result = refresh_tender_embeddings(
+            settings, ids, batch_size=batch_size, encoder=active_encoder,
+        )
+        requested += result.requested_rows
+        inserted += result.inserted_rows
+        updated += result.updated_rows
+        embedded += result.embedded_rows
+        if result.database_rows is not None:
+            database_rows = result.database_rows
+    return EmbeddingRefreshSummary(
+        requested_rows=requested, embedded_rows=embedded,
+        inserted_rows=inserted, updated_rows=updated,
+        database_rows=database_rows,
+        ingestion_run_id=next(iter(groups)) if len(groups) == 1 else None,
     )

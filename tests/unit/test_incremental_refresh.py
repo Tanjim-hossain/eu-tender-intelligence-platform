@@ -158,7 +158,7 @@ def test_refresh_connects_changed_ids_to_embeddings() -> None:
         ) as load_silver,
         patch(
             "tendergraph.pipeline.refresh."
-            "refresh_tender_embeddings",
+            "reconcile_tender_embeddings",
             return_value=(
                 embedding_summary
             ),
@@ -206,10 +206,6 @@ def test_refresh_connects_changed_ids_to_embeddings() -> None:
 
     refresh_embeddings.assert_called_once_with(
         settings,
-        (
-            "A",
-            "B",
-        ),
         batch_size=32,
         encoder=None,
     )
@@ -259,7 +255,8 @@ def test_refresh_skips_embedding_model_when_no_changes() -> None:
         ),
         patch(
             "tendergraph.pipeline.refresh."
-            "refresh_tender_embeddings"
+            "reconcile_tender_embeddings",
+            return_value=EmbeddingRefreshSummary(0, 0, 0, 0, None, None),
         ) as refresh_embeddings,
     ):
         summary = (
@@ -279,7 +276,7 @@ def test_refresh_skips_embedding_model_when_no_changes() -> None:
             )
         )
 
-    refresh_embeddings.assert_not_called()
+    refresh_embeddings.assert_called_once_with(settings, batch_size=32, encoder=None)
 
     assert summary.changed_rows == 0
     assert (
@@ -355,6 +352,10 @@ def test_refresh_reports_stage_order() -> None:
     stages: list[str] = []
 
     with (
+        patch(
+            "tendergraph.pipeline.refresh.reconcile_tender_embeddings",
+            return_value=EmbeddingRefreshSummary(0, 0, 0, 0, None, None),
+        ),
         patch(
             "tendergraph.pipeline.refresh."
             "ingest_ted_window",

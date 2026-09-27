@@ -188,7 +188,7 @@ def test_core_zero_result_skips_downstream() -> None:
         ) as load_silver,
         patch(
             "tendergraph.pipeline.refresh."
-            "refresh_tender_embeddings",
+            "reconcile_tender_embeddings",
         ) as refresh_embeddings,
     ):
         summary = (

@@ -99,10 +99,9 @@ echo "PostgreSQL is ready."
 echo
 echo "Starting scheduled TED refresh..."
 
+status=0
 uv run --frozen --env-file .env \
-  python scripts/scheduled_refresh.py "$@"
-
-status=$?
+  python scripts/scheduled_refresh.py "$@" || status=$?
 
 echo
 echo "============================================================"

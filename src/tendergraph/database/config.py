@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from urllib.parse import quote
+
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -35,9 +37,9 @@ class DatabaseSettings(BaseSettings):
     def connection_uri(self) -> str:
         return (
             "postgresql://"
-            f"{self.postgres_user}:"
-            f"{self.postgres_password}@"
+            f"{quote(self.postgres_user, safe='')}:"
+            f"{quote(self.postgres_password, safe='')}@"
             f"{self.postgres_host}:"
             f"{self.postgres_port}/"
-            f"{self.postgres_db}"
+            f"{quote(self.postgres_db, safe='')}"
         )
