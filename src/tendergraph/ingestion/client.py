@@ -214,6 +214,16 @@ class TedClient:
                         f"{expected_total}"
                     )
 
+                if (
+                    expected_total == 0
+                    and page_number == 1
+                ):
+                    yield TedIterationPage(
+                        page_number=page_number,
+                        request=page_request,
+                        result=result,
+                    )
+
                 return
 
             retrieved_count += page_record_count

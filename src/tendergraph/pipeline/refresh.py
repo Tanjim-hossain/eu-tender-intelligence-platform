@@ -48,8 +48,8 @@ StageCallback = Callable[
 @dataclass(frozen=True, slots=True)
 class IncrementalRefreshSummary:
     ingestion: TedIngestionResult
-    silver_artifact: SilverRunArtifact
-    silver_load: LoadSummary
+    silver_artifact: SilverRunArtifact | None
+    silver_load: LoadSummary | None
     embeddings: EmbeddingRefreshSummary
 
     @property
@@ -57,9 +57,19 @@ class IncrementalRefreshSummary:
         return self.ingestion.run_artifact.run_id
 
     @property
+    def no_data(self) -> bool:
+        return (
+            self.ingestion.records_retrieved
+            == 0
+        )
+
+    @property
     def changed_publication_numbers(
         self,
     ) -> tuple[str, ...]:
+        if self.silver_load is None:
+            return ()
+
         return (
             self.silver_load
             .changed_publication_numbers
@@ -103,6 +113,21 @@ def run_incremental_refresh(
         client=client,
         writer=writer,
     )
+
+    if ingestion.records_retrieved == 0:
+        return IncrementalRefreshSummary(
+            ingestion=ingestion,
+            silver_artifact=None,
+            silver_load=None,
+            embeddings=EmbeddingRefreshSummary(
+                requested_rows=0,
+                embedded_rows=0,
+                inserted_rows=0,
+                updated_rows=0,
+                database_rows=None,
+                ingestion_run_id=None,
+            ),
+        )
 
     if on_stage_start is not None:
         on_stage_start("silver_build")

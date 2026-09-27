@@ -164,9 +164,65 @@ def main(
 
     refresh = summary.refresh
     ingestion = refresh.ingestion
+    embeddings = refresh.embeddings
+
+    if refresh.no_data:
+        print()
+        print(
+            "=== REFRESH COMPLETED "
+            "(NO DATA) ==="
+        )
+        print(
+            f"Refresh ID:        "
+            f"{summary.refresh_id}"
+        )
+        print(
+            f"Ingestion run ID:  "
+            f"{summary.run_id}"
+        )
+        print(
+            "Bronze retrieved:  0"
+        )
+        print(
+            "Silver rows:       0"
+        )
+        print(
+            "Inserted rows:     0"
+        )
+        print(
+            "Updated rows:      0"
+        )
+        print(
+            "Unchanged rows:    0"
+        )
+        print(
+            "Changed rows:      0"
+        )
+        print(
+            "Embedded rows:     0"
+        )
+        print(
+            "Database rows:     unchanged"
+        )
+        print(
+            f"dbt success:       "
+            f"{summary.dbt.success}"
+        )
+        print(
+            f"Audit record:      "
+            f"{summary.audit_path}"
+        )
+
+        return 0
+
     silver = refresh.silver_artifact
     load = refresh.silver_load
-    embeddings = refresh.embeddings
+
+    if silver is None or load is None:
+        raise RuntimeError(
+            "Non-empty refresh is missing "
+            "Silver load artifacts"
+        )
 
     print()
     print(

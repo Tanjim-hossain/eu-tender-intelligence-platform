@@ -81,9 +81,51 @@ def _completed_audit(
     finished_at_utc: str,
 ) -> RefreshAuditRecord:
     ingestion = refresh.ingestion
+    embeddings = refresh.embeddings
+
+    if refresh.no_data:
+        return replace(
+            running,
+            status="completed",
+            finished_at_utc=finished_at_utc,
+            ingestion_run_id=refresh.run_id,
+            bronze_source_matches=(
+                ingestion.total_source_matches
+            ),
+            bronze_records_retrieved=(
+                ingestion.records_retrieved
+            ),
+            bronze_unique_notices=(
+                ingestion.unique_publication_numbers
+            ),
+            bronze_duplicate_notices=(
+                ingestion.duplicate_publication_numbers
+            ),
+            silver_rows=0,
+            inserted_rows=0,
+            updated_rows=0,
+            unchanged_rows=0,
+            changed_publication_numbers=(),
+            embedding_requested_rows=0,
+            embedding_embedded_rows=0,
+            embedding_inserted_rows=0,
+            embedding_updated_rows=0,
+            embedding_database_rows=None,
+            dbt_success=dbt.success,
+            dbt_elapsed_seconds=(
+                dbt.elapsed_seconds
+            ),
+            dbt_result_type=dbt.result_type,
+        )
+
     silver = refresh.silver_artifact
     load = refresh.silver_load
-    embeddings = refresh.embeddings
+
+    if silver is None or load is None:
+        raise RuntimeError(
+            "Non-empty refresh is missing "
+            "Silver load artifacts"
+        )
 
     return replace(
         running,

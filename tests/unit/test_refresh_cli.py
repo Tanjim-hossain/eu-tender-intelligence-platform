@@ -42,6 +42,7 @@ def fake_summary() -> SimpleNamespace:
         silver_load=silver_load,
         embeddings=embeddings,
         changed_rows=5,
+        no_data=False,
     )
 
     dbt = SimpleNamespace(

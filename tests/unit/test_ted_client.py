@@ -182,3 +182,47 @@ def test_client_iterates_using_next_token() -> None:
         pages[1].request.iteration_next_token
         == "token-page-2"
     )
+
+
+def test_client_preserves_zero_result_page() -> None:
+    def handler(
+        request: httpx.Request,
+    ) -> httpx.Response:
+        payload = sample_response()
+        payload["totalNoticeCount"] = 0
+        payload["notices"] = []
+        payload["iterationNextToken"] = None
+
+        return httpx.Response(
+            200,
+            json=payload,
+        )
+
+    client = TedClient(
+        transport=httpx.MockTransport(
+            handler
+        ),
+        max_retries=0,
+    )
+
+    pages = list(
+        client.iterate(
+            search_request()
+        )
+    )
+
+    assert len(pages) == 1
+    assert (
+        pages[0]
+        .result
+        .parsed
+        .total_notice_count
+        == 0
+    )
+    assert (
+        pages[0]
+        .result
+        .parsed
+        .notices
+        == []
+    )
