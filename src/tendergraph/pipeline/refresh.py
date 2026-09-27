@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
+from typing import Literal
 
 from tendergraph.database.config import (
     DatabaseSettings,
@@ -30,6 +31,18 @@ from tendergraph.search.embedding_refresh import (
 from tendergraph.storage.iteration_run import (
     IterationRunWriter,
 )
+
+RefreshStage = Literal[
+    "ingestion",
+    "silver_build",
+    "silver_load",
+    "embeddings",
+]
+
+StageCallback = Callable[
+    [RefreshStage],
+    None,
+]
 
 
 @dataclass(frozen=True, slots=True)
@@ -70,6 +83,7 @@ def run_incremental_refresh(
     writer: IterationRunWriter | None = None,
     encoder: SentenceEncoder | None = None,
     embedding_batch_size: int = 32,
+    on_stage_start: StageCallback | None = None,
 ) -> IncrementalRefreshSummary:
     """Run TED Bronze -> Silver -> DB -> embeddings."""
 
@@ -79,6 +93,9 @@ def run_incremental_refresh(
         else DatabaseSettings()
     )
 
+    if on_stage_start is not None:
+        on_stage_start("ingestion")
+
     ingestion = ingest_ted_window(
         start_date=start_date,
         end_date=end_date,
@@ -86,6 +103,9 @@ def run_incremental_refresh(
         client=client,
         writer=writer,
     )
+
+    if on_stage_start is not None:
+        on_stage_start("silver_build")
 
     silver_artifact = (
         build_silver_run_artifact(
@@ -103,6 +123,9 @@ def run_incremental_refresh(
             "run IDs do not match"
         )
 
+    if on_stage_start is not None:
+        on_stage_start("silver_load")
+
     silver_load = load_silver_tenders(
         silver_artifact.parquet_path,
         active_settings,
@@ -112,6 +135,9 @@ def run_incremental_refresh(
         silver_load
         .changed_publication_numbers
     )
+
+    if on_stage_start is not None:
+        on_stage_start("embeddings")
 
     if changed_publication_numbers:
         embeddings = (

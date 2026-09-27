@@ -345,3 +345,55 @@ def test_refresh_rejects_run_id_mismatch() -> None:
             )
 
     load_silver.assert_not_called()
+
+
+def test_refresh_reports_stage_order() -> None:
+    settings = Mock(
+        spec=DatabaseSettings
+    )
+
+    stages: list[str] = []
+
+    with (
+        patch(
+            "tendergraph.pipeline.refresh."
+            "ingest_ted_window",
+            return_value=ingestion(),
+        ),
+        patch(
+            "tendergraph.pipeline.refresh."
+            "build_silver_run_artifact",
+            return_value=(
+                silver_artifact()
+            ),
+        ),
+        patch(
+            "tendergraph.pipeline.refresh."
+            "load_silver_tenders",
+            return_value=(
+                silver_load()
+            ),
+        ),
+    ):
+        run_incremental_refresh(
+            start_date=date(
+                2026,
+                9,
+                27,
+            ),
+            end_date=date(
+                2026,
+                9,
+                27,
+            ),
+            countries=["BEL"],
+            settings=settings,
+            on_stage_start=stages.append,
+        )
+
+    assert stages == [
+        "ingestion",
+        "silver_build",
+        "silver_load",
+        "embeddings",
+    ]
