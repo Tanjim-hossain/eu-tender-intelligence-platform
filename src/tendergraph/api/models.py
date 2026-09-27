@@ -95,6 +95,47 @@ class HealthResponse(BaseModel):
     model: str
 
 
+class OperationsStatusResponse(BaseModel):
+    model_config = ConfigDict(
+        from_attributes=True
+    )
+
+    overall_status: Literal[
+        "ok",
+        "refreshing",
+        "degraded",
+        "stale",
+        "unknown",
+    ]
+
+    latest_refresh_id: str | None
+    latest_refresh_status: Literal[
+        "running",
+        "completed",
+        "failed",
+    ] | None
+    latest_started_at_utc: datetime | None
+    latest_finished_at_utc: datetime | None
+    latest_window_end: date | None
+    latest_dbt_success: bool | None
+
+    last_successful_refresh_id: str | None
+    last_successful_finished_at_utc: (
+        datetime | None
+    )
+    last_successful_window_end: date | None
+
+    expected_data_through: date
+    lag_days: int | None
+    stale: bool
+
+    last_success_database_rows: int | None
+    last_success_embedding_rows: int | None
+
+    failure_stage: str | None
+    failure_type: str | None
+
+
 class AskRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

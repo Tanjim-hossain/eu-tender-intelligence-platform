@@ -23,6 +23,7 @@ from tendergraph.api.models import (
     AskRequest,
     AskResponse,
     HealthResponse,
+    OperationsStatusResponse,
     SearchRequest,
     SearchResponse,
     SearchResult,
@@ -32,6 +33,9 @@ from tendergraph.database.config import (
 )
 from tendergraph.database.pool import (
     create_connection_pool,
+)
+from tendergraph.pipeline.status import (
+    read_operational_status,
 )
 from tendergraph.rag.errors import GenerationUnavailable, InvalidGeneratedAnswer
 from tendergraph.rag.evidence import TenderEvidenceRepository
@@ -165,6 +169,29 @@ def create_app(
             status="ok",
             database="ok",
             model=MODEL_NAME,
+        )
+
+    @application.get(
+        "/operations/status",
+        response_model=OperationsStatusResponse,
+    )
+    def operations_status() -> OperationsStatusResponse:
+        try:
+            status = read_operational_status()
+        except (
+            OSError,
+            TypeError,
+            ValueError,
+        ) as exc:
+            raise HTTPException(
+                status_code=503,
+                detail=(
+                    "Operational status unavailable"
+                ),
+            ) from exc
+
+        return OperationsStatusResponse.model_validate(
+            status
         )
 
     @application.post(
