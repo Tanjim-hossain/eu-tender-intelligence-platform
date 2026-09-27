@@ -1,0 +1,104 @@
+{
+  "description": "Hand-authored contract fixtures, not LLM quality results. NONE prose must be replaced with a fixed abstention.",
+  "allowed_citations": [
+    "T1",
+    "T2",
+    "T3"
+  ],
+  "cases": [
+    {
+      "id": "one_source",
+      "response": "RELEVANT: T1\nANSWER:\nBuyer is North Hospital [T1].",
+      "expected_selected": [
+        "T1"
+      ],
+      "expected_accept": true
+    },
+    {
+      "id": "two_sources",
+      "response": "RELEVANT: T1,T2\nANSWER:\nSystems [T1] and entertainment [T2] differ.",
+      "expected_selected": [
+        "T1",
+        "T2"
+      ],
+      "expected_accept": true
+    },
+    {
+      "id": "abstain",
+      "response": "RELEVANT: NONE\nANSWER:\nInsufficient evidence.",
+      "expected_selected": [],
+      "expected_accept": true
+    },
+    {
+      "id": "none_untrusted_prose",
+      "response": "RELEVANT: NONE\nANSWER:\nThe winning bid is EUR 999999.",
+      "expected_selected": [],
+      "expected_accept": true,
+      "forbidden_phrases": [
+        "999999"
+      ]
+    },
+    {
+      "id": "missing_header",
+      "response": "Buyer is North Hospital [T1].",
+      "expected_selected": [],
+      "expected_accept": false
+    },
+    {
+      "id": "unknown_selected",
+      "response": "RELEVANT: T99\nANSWER:\nFact [T99].",
+      "expected_selected": [],
+      "expected_accept": false
+    },
+    {
+      "id": "duplicate_selected",
+      "response": "RELEVANT: T1,T1\nANSWER:\nFact [T1].",
+      "expected_selected": [],
+      "expected_accept": false
+    },
+    {
+      "id": "uncited_selected",
+      "response": "RELEVANT: T1,T2\nANSWER:\nFact [T1].",
+      "expected_selected": [],
+      "expected_accept": false
+    },
+    {
+      "id": "unselected_citation",
+      "response": "RELEVANT: T1\nANSWER:\nFact [T1] and [T2].",
+      "expected_selected": [],
+      "expected_accept": false
+    },
+    {
+      "id": "unselected_bare_id",
+      "response": "RELEVANT: T1\nANSWER:\nFact [T1]. T2 is irrelevant.",
+      "expected_selected": [],
+      "expected_accept": false
+    },
+    {
+      "id": "unselected_lowercase_id",
+      "response": "RELEVANT: T1\nANSWER:\nFact [T1]. t2 is irrelevant.",
+      "expected_selected": [],
+      "expected_accept": false
+    },
+    {
+      "id": "none_with_citation",
+      "response": "RELEVANT: NONE\nANSWER:\nFact [T1].",
+      "expected_selected": [],
+      "expected_accept": false
+    },
+    {
+      "id": "empty_answer",
+      "response": "RELEVANT: T1\nANSWER:\n",
+      "expected_selected": [],
+      "expected_accept": false
+    },
+    {
+      "id": "selected_casefold",
+      "response": "relevant: t1\nanswer:\nFact [T1].",
+      "expected_selected": [
+        "T1"
+      ],
+      "expected_accept": true
+    }
+  ]
+}

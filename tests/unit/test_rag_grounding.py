@@ -107,6 +107,8 @@ class FakeProvider:
         assert "[T1]" in user_prompt
 
         return (
+            "RELEVANT: T1\n"
+            "ANSWER:\n"
             "This tender concerns a managed "
             "cloud platform [T1]."
         )

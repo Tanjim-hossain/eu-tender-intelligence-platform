@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Search European procurement notices and review the evidence behind every answer.">
+  <title>TenderGraph · European procurement intelligence</title>
+  <link rel="stylesheet" href="/assets/style.css"><script src="/assets/app.js" defer></script>
+</head>
+<body>
+  <header class="topbar"><a class="brand" href="/" aria-label="TenderGraph home"><span class="brand-mark" aria-hidden="true">T<span>·</span></span>TenderGraph</a><span class="top-label">EUROPEAN PROCUREMENT INTELLIGENCE</span><a class="docs-link" href="/docs">API docs ↗</a></header>
+  <div class="layout">
+    <aside class="sidebar">
+      <p class="eyebrow">YOUR WORKSPACE</p><div class="nav-active"><span aria-hidden="true">⌕</span> Tender explorer</div>
+      <div class="guide"><p class="eyebrow">FROM QUESTION TO EVIDENCE</p><ol><li><strong>Find opportunities</strong><span>Search by service, technology or project.</span></li><li><strong>Review the notices</strong><span>Compare buyers, values and deadlines.</span></li><li><strong>Ask a focused question</strong><span>Follow citations back to the source.</span></li></ol></div>
+      <div class="connection"><span class="status-dot" id="connection-dot"></span><div><strong id="connection-label">Checking connection</strong><small id="mode-label">Loading answer mode…</small></div></div>
+      <p class="sidebar-note">Source: Tenders Electronic Daily.<br>Results reflect the loaded dataset.</p>
+    </aside>
+    <main>
+      <div class="intro"><p class="eyebrow">TENDER EXPLORER</p><h1>Opportunity, backed by evidence.</h1><p>Find European tenders. Ask better questions. Go straight to the source.</p></div>
+      <section class="search-panel" aria-label="Search tenders"><form id="search-form"><label for="query">What are you looking for?</label><div class="search-row"><input id="query" type="search" maxlength="500" required placeholder="Try hospital information systems" autocomplete="off"><button id="search-button" type="submit">Search tenders ↗</button></div><div class="search-options"><div class="examples"><span>Explore</span><button type="button" data-query="hospital information system">Hospital technology</button><button type="button" data-query="cloud data platform">Cloud platforms</button><button type="button" data-query="cybersecurity services">Cybersecurity</button></div><label class="limit-label" for="limit">Results <select id="limit"><option>5</option><option selected>10</option><option>20</option></select></label></div></form></section>
+      <div id="notice" role="alert" hidden></div>
+      <div class="content-grid">
+        <section class="results-panel" aria-labelledby="results-heading"><div class="section-heading"><h2 id="results-heading">Search results <span id="result-count" class="count">—</span></h2><span id="search-time" class="muted"></span></div><p id="results-caption" class="section-caption">Ranked by lexical and semantic similarity.</p><div id="results" aria-live="polite"><div class="empty-state"><span class="empty-icon" aria-hidden="true">⌕</span><h3>Your next opportunity starts here.</h3><p>Enter a topic above to explore notices from the loaded TED dataset.</p><div class="empty-tags"><span>Buyers</span><span>Deadlines</span><span>Source documents</span></div></div></div></section>
+        <section class="answer-panel" aria-labelledby="answer-heading"><div class="answer-heading"><span class="eyebrow">EVIDENCE WORKSPACE</span><span class="mode-pill" id="mode-pill">Loading</span></div><h2 id="answer-heading">Go beyond the search.</h2><p id="answer-help">Ask about buyers, deadlines or differences between tenders.</p><form id="ask-form"><label for="question">Your question</label><textarea id="question" rows="4" maxlength="2000" required placeholder="Who is the buyer, and what deadline is stated?"></textarea><div class="ask-options"><label for="evidence-limit">Candidate notices <select id="evidence-limit"><option selected>3</option><option>5</option><option>10</option></select></label><button id="ask-button" type="submit">Ask with evidence →</button></div></form><p class="hint">Uses your search topic as a retrieval hint. The question determines which evidence is relevant.</p><div id="answer-output" aria-live="polite" hidden><div class="answer-meta"><strong id="answer-status"></strong><span id="answer-time"></span></div><p id="answer-text"></p><p id="truncation" class="hint" hidden>Some source text was shortened to fit the context window.</p><h3 id="sources-heading">Supporting sources</h3><div id="sources"></div><button type="button" id="download-answer" class="secondary">Download answer JSON ↓</button></div><div class="evidence-note"><span aria-hidden="true">◎</span><p>Verify decisions against the original notice. A citation links to evidence; it does not prove every generated claim.</p></div></section>
+      </div>
+      <footer>Built for deliberate decisions.<span>TenderGraph · Local workspace</span></footer>
+    </main>
+  </div>
+</body>
+</html>

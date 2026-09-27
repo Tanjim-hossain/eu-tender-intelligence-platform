@@ -51,3 +51,6 @@ data/search/
 
 # Local database backups
 data/backups/
+
+# Generated answer-evaluation reports
+evaluation/answers/reports/*.json

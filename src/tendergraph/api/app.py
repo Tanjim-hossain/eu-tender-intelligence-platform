@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from contextlib import ExitStack, asynccontextmanager
+from pathlib import Path
 from typing import cast
 
 from fastapi import (
@@ -9,6 +10,8 @@ from fastapi import (
     HTTPException,
     Request,
 )
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from psycopg import OperationalError
 from psycopg_pool import ConnectionPool, PoolTimeout
 from sentence_transformers import (
@@ -74,6 +77,7 @@ async def lifespan(
         app.state.answer_service = build_answer_service(
             service, TenderEvidenceRepository(pool), rag_settings, resources
         )
+        app.state.rag_settings = rag_settings
 
         yield
 
@@ -96,6 +100,31 @@ def create_app(
             else None
         ),
     )
+
+    web_dir = Path(__file__).parent / "web"
+    application.mount("/assets", StaticFiles(directory=web_dir), name="assets")
+
+    @application.get("/", include_in_schema=False)
+    def home() -> FileResponse:
+        return FileResponse(web_dir / "index.html", headers={
+            "Content-Security-Policy": (
+                "default-src 'self'; script-src 'self'; style-src 'self'; "
+                "connect-src 'self'; img-src 'self' data:; object-src 'none'; "
+                "base-uri 'none'; frame-ancestors 'none'"
+            ),
+            "X-Content-Type-Options": "nosniff",
+        })
+
+    @application.get("/config")
+    def public_config(request: Request) -> dict[str, object]:
+        config = getattr(request.app.state, "rag_settings", None)
+        if config is None:
+            raise HTTPException(status_code=503, detail="Application not initialized")
+        return {
+            "answer_mode": config.provider,
+            "generation_model": config.model if config.provider != "evidence" else None,
+            "reranking": config.rerank,
+        }
 
     @application.get(
         "/health",
@@ -151,13 +180,13 @@ def create_app(
             request.app.state.search_service,
         )
 
-        results = service.search(
-            payload.query,
-            limit=payload.limit,
-            retrieval_depth=(
-                payload.retrieval_depth
-            ),
-        )
+        try:
+            results = service.search(
+                payload.query, limit=payload.limit,
+                retrieval_depth=payload.retrieval_depth,
+            )
+        except (OperationalError, PoolTimeout) as exc:
+            raise HTTPException(status_code=503, detail="Database unavailable") from exc
 
         return SearchResponse(
             query=payload.query,

@@ -14,14 +14,15 @@ Sentence Transformers, and FastAPI.
 - Lexical and multilingual-e5-small vector retrieval with weighted reciprocal rank fusion.
 - Optional multilingual cross-encoder reranking using the existing evaluation model.
 - `POST /search` for ranked notices; `POST /ask` for source evidence or generated answers.
+- Browser workspace at `/`: responsive tender search, questions, selected sources, and answer JSON download.
 - Stable citation IDs linked to actual retrieved notices and TED source URLs.
 - No-generation default; optional local Ollama or explicitly configured OpenAI generation.
 
 ## Continue with the existing Mac setup
 
 Keep your current `.env`, Docker volume, and Git history. Merge the updated source
-into your existing project folder, or run the extracted folder alongside it after
-copying your existing `.env` there. Do not replace your password with the example
+into your existing project folder using `START_HERE.md`. This source-only archive
+does not include your local data, model weights, or database. Do not replace your password with the example
 value. This update does not require a database reload or schema migration.
 
 From the project root:
@@ -29,11 +30,14 @@ From the project root:
 ```bash
 uv sync --frozen
 docker compose --env-file .env -f infra/compose.yml up -d
-RAG_PROVIDER=evidence uv run --frozen uvicorn tendergraph.api.app:app --host 127.0.0.1 --port 8000
+uv run --frozen uvicorn tendergraph.api.app:app --host 127.0.0.1 --port 8000
 ```
 
-The shell override explicitly keeps this run in free evidence mode even if another
-provider is configured in `.env`. Start a second terminal in the same project:
+Open <http://127.0.0.1:8000> for the browser workspace. This keeps the provider
+and installed model already configured in your `.env`. To explicitly use evidence
+mode for a run, prefix the server command with `RAG_PROVIDER=evidence`.
+
+The CLI is also available from a second terminal in the same project:
 
 ```bash
 uv run --frozen python scripts/ask_tenders.py \
@@ -117,6 +121,8 @@ and “Not stated” in formatted evidence. Decimal amounts serialize as strings
 - `evidence_only`: retrieved facts, with no generated interpretation.
 - `answered`: generated text passed citation-ID checks.
 - `no_results`: retrieval returned no notices; the generator was not called.
+- `insufficient_evidence`: candidates were retrieved, but the model selected none;
+  returns a fixed insufficiency message and no citations or sources.
 - HTTP 422: invalid request, including an attempt to select a provider in the body.
 - HTTP 502: generated answer failed citation validation or evidence cannot fit the budget.
 - HTTP 503: the configured generator or database is unavailable.
@@ -129,8 +135,11 @@ There is no calibrated relevance threshold or automatic eligibility decision.
 
 Generated contexts use a character budget (`RAG_MAX_CONTEXT_CHARS`, default 40000).
 Long descriptions are marked as truncated, and lower-ranked notices are omitted
-if needed. `context_truncated` discloses this; returned sources match the context
-actually sent. A character budget is not an exact model token limit. For a small
+if needed. `context_truncated` discloses this. In generated mode, returned sources
+match the validated relevance selection; evidence mode returns retrieved evidence.
+The model contract is `RELEVANT: T1,T2` followed by `ANSWER:` and cited prose,
+or `RELEVANT: NONE`. Unknown, duplicate, uncited, or unselected IDs are rejected.
+A character budget is not an exact model token limit. For a small
 local context window, lower this setting and/or `evidence_limit`.
 
 ## Fresh database setup (only when needed)
@@ -145,7 +154,7 @@ uv run --frozen python scripts/load_semantic_embeddings.py
 ```
 
 The first command reloads `silver.tenders`; do not run it merely to upgrade the API.
-The second ensures the lexical column/index exists. The third uses the included
+The second ensures the lexical column/index exists. The third uses your existing
 local semantic index; if that index is missing or stale, rebuild it first with
 `scripts/build_semantic_index.py`. TED snapshots and embedding indexes must refer
 to the same corpus. No ingestion or paid API call is required for this update.
@@ -156,13 +165,27 @@ to the same corpus. No ingestion or paid API call is required for this update.
 uv run --frozen ruff check .
 uv run --frozen mypy src scripts
 uv run --frozen pytest -q
+uv run --frozen python scripts/evaluate_answers.py
 ```
 
 See `WORK_UPDATE.md` for this change's validation and limits. Original retrieval
 evaluations remain in `evaluation/retrieval/`; this update does not claim new
 retrieval quality or model accuracy results.
 
-Next milestones: a live Mac smoke test of `/ask`; an answer-quality evaluation set
-covering unsupported questions and citation entailment; then a user interface,
-scheduled refresh, and deployment configuration. This local API has no authentication
-or rate limiting and should not be exposed publicly as-is.
+The default answer evaluation replays 14 hand-authored contract cases without any
+model or database call. To evaluate your configured local Ollama model on six
+fixed synthetic-evidence cases:
+
+```bash
+uv run --frozen python scripts/evaluate_answers.py --live
+```
+
+The live runner requires `RAG_PROVIDER=ollama`; it cannot use the paid provider.
+Reports are written to `evaluation/answers/reports/`. It checks ID selection and
+format, with manual review criteria for factual support. This is not a retrieval
+benchmark or automatic factual-entailment score. See `evaluation/answers/README.md`.
+
+Next milestones: run the updated workspace against the existing Mac database and
+Ollama model, review the six model outputs, then implement scheduled ingestion and
+choose deployment requirements. This local application has no authentication or
+rate limiting and should not be exposed publicly as-is.

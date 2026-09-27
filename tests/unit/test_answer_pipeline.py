@@ -76,7 +76,11 @@ def test_no_results_never_calls_generator_or_repository(record):
 
 def test_generated_answer_uses_retrieved_sources(record):
     provider = Mock()
-    provider.generate.return_value = "The buyer is Example Buyer [T1]."
+    provider.generate.return_value = (
+        "RELEVANT: T1\n"
+        "ANSWER:\n"
+        "The buyer is Example Buyer [T1]."
+    )
     service, _, _ = make_service(
         record, mode="ollama", generator=GroundedRAGService(provider)
     )
@@ -86,7 +90,14 @@ def test_generated_answer_uses_retrieved_sources(record):
     assert "Example Buyer" in provider.generate.call_args.kwargs["user_prompt"]
 
 
-@pytest.mark.parametrize("text", ["Uncited fact", "Wrong reference [T9].", ""])
+@pytest.mark.parametrize(
+    "text",
+    [
+        "RELEVANT: T1\nANSWER:\nUncited fact",
+        "RELEVANT: T1\nANSWER:\nWrong reference [T9].",
+        "",
+    ],
+)
 def test_bad_generation_is_rejected(record, text):
     provider = Mock()
     provider.generate.return_value = text
@@ -120,7 +131,11 @@ def test_missing_evidence_is_not_silently_ignored(record):
 
 def test_context_is_bounded_and_truncation_disclosed(record):
     provider = Mock()
-    provider.generate.return_value = "Cloud service [T1]."
+    provider.generate.return_value = (
+        "RELEVANT: T1\n"
+        "ANSWER:\n"
+        "Cloud service [T1]."
+    )
     service, _, _ = make_service(
         replace(record, description="x" * 100000),
         mode="ollama",
@@ -228,3 +243,154 @@ def test_duplicate_citation_ids_fail_before_generation(record):
     with pytest.raises(ValueError, match="unique"):
         GroundedRAGService(provider).answer(question="cloud", evidence=[record, record])
     provider.generate.assert_not_called()
+
+
+def test_generation_filters_unused_evidence(
+    record,
+):
+    second = replace(
+        record,
+        publication_number="456-2026",
+        title="Unrelated scanners",
+    )
+
+    provider = Mock()
+    provider.generate.return_value = (
+        "RELEVANT: T1\n"
+        "ANSWER:\n"
+        "The buyer is Example Buyer [T1]."
+    )
+
+    service, search, repository = make_service(
+        record,
+        mode="ollama",
+        generator=GroundedRAGService(
+            provider
+        ),
+    )
+
+    search.search.return_value = [
+        record,
+        second,
+    ]
+    repository.fetch.return_value = [
+        record,
+        second,
+    ]
+
+    result = service.answer(
+        question="Who is the buyer?",
+        evidence_limit=2,
+    )
+
+    assert result.citations == ("T1",)
+    assert len(result.evidence) == 1
+    assert (
+        result.evidence[0].publication_number
+        == "123-2026"
+    )
+
+
+def test_generation_rejects_selected_but_uncited_evidence(
+    record,
+):
+    provider = Mock()
+    provider.generate.return_value = (
+        "RELEVANT: T1,T2\n"
+        "ANSWER:\n"
+        "The buyer is Example Buyer [T1]."
+    )
+
+    second = replace(
+        record,
+        citation_id="T2",
+        publication_number="456-2026",
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="exactly match",
+    ):
+        GroundedRAGService(
+            provider
+        ).answer(
+            question="Who is the buyer?",
+            evidence=[
+                replace(
+                    record,
+                    citation_id="T1",
+                ),
+                second,
+            ],
+        )
+
+
+def test_generation_can_select_no_evidence(
+    record,
+):
+    provider = Mock()
+    provider.generate.return_value = (
+        "RELEVANT: NONE\n"
+        "ANSWER:\n"
+        "The available tender evidence "
+        "is insufficient to answer the question."
+    )
+
+    service, _, _ = make_service(
+        record,
+        mode="ollama",
+        generator=GroundedRAGService(
+            provider
+        ),
+    )
+
+    result = service.answer(
+        question="What is the winning bid?"
+    )
+
+    assert result.status == "insufficient_evidence"
+    assert result.citations == ()
+    assert result.evidence == ()
+
+
+def test_generation_rejects_unselected_evidence_mentions(
+    record,
+):
+    second = replace(
+        record,
+        publication_number="456-2026",
+        title="Other technology",
+    )
+
+    provider = Mock()
+    provider.generate.return_value = (
+        "RELEVANT: T1\n"
+        "ANSWER:\n"
+        "The buyer is Example Buyer [T1]. "
+        "T2 is not relevant."
+    )
+
+    service, search, repository = make_service(
+        record,
+        mode="ollama",
+        generator=GroundedRAGService(
+            provider
+        ),
+    )
+
+    search.search.return_value = [
+        record,
+        second,
+    ]
+    repository.fetch.return_value = [
+        record,
+        second,
+    ]
+
+    with pytest.raises(
+        InvalidGeneratedAnswer
+    ):
+        service.answer(
+            question="Who is the buyer?",
+            evidence_limit=2,
+        )

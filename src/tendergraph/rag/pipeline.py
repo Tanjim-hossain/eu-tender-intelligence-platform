@@ -41,7 +41,7 @@ class EvidenceReranker(Protocol):
 class AnswerResult:
     question: str
     mode: AnswerMode
-    status: Literal["evidence_only", "answered", "no_results"]
+    status: Literal["evidence_only", "answered", "no_results", "insufficient_evidence"]
     text: str
     citations: tuple[str, ...]
     evidence: tuple[TenderEvidence, ...]
@@ -145,7 +145,9 @@ class TenderAnswerService:
                 + build_evidence_context(evidence)
             )
             citations = tuple(item.citation_id for item in evidence)
-            status: Literal["evidence_only", "answered", "no_results"] = "evidence_only"
+            status: Literal[
+                "evidence_only", "answered", "no_results", "insufficient_evidence"
+            ] = "evidence_only"
         else:
             # Never silently cut off a source mid-field. Remove whole notices
             # at the end, and explicitly mark shortened long descriptions.
@@ -168,12 +170,27 @@ class TenderAnswerService:
                 raise InvalidGeneratedAnswer("Evidence exceeds the context budget")
             evidence = bounded
             try:
-                answer = self._generator.answer(question=question, evidence=evidence)
+                answer = self._generator.answer(
+                    question=question,
+                    evidence=evidence,
+                )
             except ValueError as exc:
                 raise InvalidGeneratedAnswer(
                     "Generated answer failed citation validation; inspect sources or retry"
                 ) from exc
-            text, citations, status = answer.text, answer.citations, "answered"
+            selected = set(
+                answer.selected_citations
+            )
+
+            evidence = [
+                item
+                for item in evidence
+                if item.citation_id in selected
+            ]
+
+            text = answer.text
+            citations = answer.citations
+            status = "answered" if selected else "insufficient_evidence"
         return AnswerResult(
             question, self._mode, status, text, citations, tuple(evidence), truncated
         )

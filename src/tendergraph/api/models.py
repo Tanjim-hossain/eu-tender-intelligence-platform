@@ -138,7 +138,7 @@ class AnswerSource(BaseModel):
 class AskResponse(BaseModel):
     question: str
     mode: AnswerMode
-    status: Literal["evidence_only", "answered", "no_results"]
+    status: Literal["evidence_only", "answered", "no_results", "insufficient_evidence"]
     answer: str
     citations: list[str]
     sources: list[AnswerSource]

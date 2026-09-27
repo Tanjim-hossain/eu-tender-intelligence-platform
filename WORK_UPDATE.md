@@ -1,71 +1,57 @@
-# Work update — 26 September 2026
+# Work update — 27 September 2026
 
 ## Completed milestone
 
-Connected the existing retrieval and RAG components through `POST /ask`.
-The original archive already contained 80 passing tests, an OpenAI provider,
-prompt/context construction, and citation validation, but no answer endpoint.
+Continued from `TenderGraph-Latest-20260927-010932.zip`, preserving the uploaded
+relevance-selection pipeline and the existing ingestion/retrieval code.
 
-Changes:
-
-- Added retrieval-to-evidence orchestration, optional cross-encoder reranking,
-  and citation IDs assigned after final ranking.
-- Added a free, non-generative evidence mode as the default. Its output is
-  explicitly labelled as retrieved facts rather than a generated answer.
-- Added an optional local Ollama provider with bounded output, timeout handling,
-  and explicit model configuration. No paid fallback or automatic retries.
-- Connected the existing OpenAI adapter as an explicit server-side opt-in,
-  with timeout, incomplete-output handling, and resource cleanup.
-- Added `/ask` request/response validation, source metadata, no-results handling,
-  sanitized provider/database errors, and a command-line client.
-- Added context size controls, disclosed truncation, and duplicate citation checks.
-- Restored a credential-free `.env.example` and wrote setup/continuation instructions
-  in the previously empty README.
+- Added a responsive browser workspace at `/` with tender search, buyer/value/
+  deadline cards, questions, supporting sources, answer JSON download, and clear
+  loading, empty, and failure states. It uses the server's existing answer mode.
+- Added read-only `/config`, exposing mode/model/reranking without credentials.
+- Fixed the double-escaped evidence-ID regex, including case-insensitive detection
+  of unselected IDs mentioned in prose.
+- Added `insufficient_evidence` when the generator selects `RELEVANT: NONE`. It
+  returns a fixed message with no sources, instead of passing unverified prose.
+- Kept strict selection/citation matching and rejection of unknown/duplicate IDs.
+- Added sanitized database-unavailable handling for `/search`.
+- Fixed the local audit script's all-requests-failed summary crash.
+- Added 14 offline answer-contract cases, six synthetic local-model cases,
+  a report-writing evaluation runner, browser checks, and Makefile shortcuts.
+- Added `START_HERE.md` and a credential-free `.env.example`. Existing `.env`,
+  local data, model installation, Docker volume, and Git history are reused.
 
 ## Verified here
 
-- Installed the uploaded lockfile with `uv sync --frozen`.
-- Original suite: **80 passed**.
-- Updated suite: **122 passed** (42 additional test cases).
+- `uv sync --frozen`: completed against the uploaded lockfile.
 - `ruff check .`: passed.
-- `mypy src scripts`: passed, 64 source files.
-- CLI help loads successfully.
-- API tests exercise the actual `/ask` endpoint and answer pipeline with injected
-  retrieval/evidence fixtures. Ollama HTTP behavior uses a mock transport.
-- Tests cover citation/source mapping, reranking order, no-results behavior,
-  context limits, invalid generations, malformed requests, timeout/HTTP failures,
-  and the default mode never constructing an LLM client.
+- `mypy src scripts`: passed, 67 source files.
+- `pytest -q`: **145 passed**.
+- Offline answer-contract replay: **14/14 passed**. No model called.
+- Browser smoke: passed search, cited answers, JSON download, abstention, unsafe
+  text/URL rendering, 503 errors, preserved inputs, and evidence-mode labels.
+- Desktop 1440px and mobile 390px screenshots inspected. Mobile has no horizontal
+  overflow. Screenshots use clearly labelled synthetic notices/answers.
+- Wheel build passed; all three HTML/CSS/JS assets are packaged.
+
+The browser test runs the real static assets through FastAPI with API responses
+intercepted by test fixtures. Python API and pipeline tests use injected retrieval
+and evidence fixtures; Ollama HTTP behavior uses a mock transport.
 
 ## Not verified here
 
-This environment has no running PostgreSQL/pgvector or Ollama daemon. No live
-database retrieval, local model generation, or paid OpenAI call was made. The
-new tests do not establish real answer quality, model latency, or factual
-entailment. Existing retrieval evaluation files were preserved without rerunning
-or changing their reported metrics.
+No live PostgreSQL retrieval, local Ollama generation, or paid OpenAI call was made
+in this environment. The six-case model suite is ready to run on the Mac but has
+not been scored here. Passing ID/format checks does not prove factual support or
+real-world relevance. Existing retrieval evaluations are preserved, not rerun.
 
-## Run against your existing Mac database
+## Next local steps
 
-Retain your existing `.env`. From the updated project directory:
+Follow `START_HERE.md` to merge this source update and start the API. Open
+http://127.0.0.1:8000 and try the existing hospital-information-system search.
+Then run `make evaluate-local` with the installed Ollama model and review each
+answer against its case's manual review criterion.
 
-```bash
-uv sync --frozen
-docker compose --env-file .env -f infra/compose.yml up -d
-RAG_PROVIDER=evidence uv run --frozen uvicorn tendergraph.api.app:app --host 127.0.0.1 --port 8000
-```
-
-In another terminal, from the same directory:
-
-```bash
-uv run --frozen python scripts/ask_tenders.py \
-  "Who is the buyer and what deadline is stated?" \
-  --query "hospital information system" --limit 3
-```
-
-Expected behavior: `Mode: evidence | Status: evidence_only`, followed by retrieved
-facts and source links. Inspect <http://127.0.0.1:8000/docs> for the full schema.
-No database reload is required. See the README for local Ollama configuration.
-
-This completes the API/RAG integration milestone, not the entire product roadmap.
-The next step is a live smoke test on the existing Mac setup, then answer-quality
-evaluation before building and deploying a user-facing application.
+Scheduled refresh, production authentication, and public deployment remain future
+milestones. This update completes the browser workspace and evaluation tooling;
+it does not claim the whole production roadmap is complete.

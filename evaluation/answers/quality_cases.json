@@ -1,0 +1,137 @@
+{
+  "description": "Synthetic fixed-evidence checks. Manual factual review remains required.",
+  "allowed_citations": [
+    "T1",
+    "T2",
+    "T3"
+  ],
+  "evidence": [
+    {
+      "publication_date": "2026-09-25",
+      "lot_description_text": null,
+      "buyer_country": "BEL",
+      "cpv_codes": [
+        "72000000"
+      ],
+      "procedure_type": "open",
+      "contract_natures": [
+        "services"
+      ],
+      "estimated_value": null,
+      "estimated_value_currency": null,
+      "earliest_deadline": null,
+      "latest_deadline": null,
+      "performance_countries": [
+        "BEL"
+      ],
+      "performance_regions": [],
+      "source_html_url": "https://example.invalid/synthetic-fixture",
+      "citation_id": "T1",
+      "publication_number": "fixture-his",
+      "title": "Hospital information system replacement",
+      "buyer_name": "North Hospital",
+      "description": "Procurement of a hospital information system for patient admission and billing. The existing software reaches end of life on 2030-12-31. No procurement deadline or estimated value is supplied."
+    },
+    {
+      "publication_date": "2026-09-25",
+      "lot_description_text": null,
+      "buyer_country": "BEL",
+      "cpv_codes": [
+        "72000000"
+      ],
+      "procedure_type": "open",
+      "contract_natures": [
+        "services"
+      ],
+      "estimated_value": null,
+      "estimated_value_currency": null,
+      "earliest_deadline": "2026-10-18T08:00:00Z",
+      "latest_deadline": "2026-10-18T08:00:00Z",
+      "performance_countries": [
+        "BEL"
+      ],
+      "performance_regions": [],
+      "source_html_url": "https://example.invalid/synthetic-fixture",
+      "citation_id": "T2",
+      "publication_number": "fixture-entertainment",
+      "title": "Hospital bedside entertainment platform",
+      "buyer_name": "South Hospital",
+      "description": "Procurement of television and patient entertainment terminals. This is not a hospital admission or billing system."
+    },
+    {
+      "publication_date": "2026-09-25",
+      "lot_description_text": null,
+      "buyer_country": "BEL",
+      "cpv_codes": [
+        "72000000"
+      ],
+      "procedure_type": "open",
+      "contract_natures": [
+        "services"
+      ],
+      "estimated_value": null,
+      "estimated_value_currency": null,
+      "earliest_deadline": null,
+      "latest_deadline": null,
+      "performance_countries": [
+        "BEL"
+      ],
+      "performance_regions": [],
+      "source_html_url": "https://example.invalid/synthetic-fixture",
+      "citation_id": "T3",
+      "publication_number": "fixture-railway",
+      "title": "Railway track maintenance",
+      "buyer_name": "Regional Rail",
+      "description": "Track inspection and replacement of railway sleepers. No hospital services."
+    }
+  ],
+  "cases": [
+    {
+      "id": "specific_category",
+      "question": "Who is buying the hospital information system for admission and billing?",
+      "expected_selected": [
+        "T1"
+      ],
+      "review": "Must identify North Hospital and exclude entertainment and railway notices."
+    },
+    {
+      "id": "broad_comparison",
+      "question": "How do the two hospital technology procurements differ?",
+      "expected_selected": [
+        "T1",
+        "T2"
+      ],
+      "review": "Compare admission/billing with entertainment; exclude railway."
+    },
+    {
+      "id": "deadline_not_end_of_life",
+      "question": "What procurement deadline is stated for the hospital information system replacement?",
+      "expected_selected": [
+        "T1"
+      ],
+      "review": "Must say deadline not stated. 2030-12-31 is system end of life, not a submission deadline."
+    },
+    {
+      "id": "missing_amount",
+      "question": "What estimated value is stated for the admission and billing system?",
+      "expected_selected": [
+        "T1"
+      ],
+      "review": "Must say not stated; no invented amount or zero."
+    },
+    {
+      "id": "unrelated_question",
+      "question": "What is the weather forecast for Tokyo tomorrow?",
+      "expected_selected": [],
+      "review": "Must abstain and return no citations."
+    },
+    {
+      "id": "buyer_focus",
+      "question": "Who is the buyer of railway maintenance? Report only the buyer.",
+      "expected_selected": [
+        "T3"
+      ],
+      "review": "Regional Rail only; no invented amount."
+    }
+  ]
+}
