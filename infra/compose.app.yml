@@ -1,0 +1,37 @@
+# Opt-in overlay. Keep the same Compose project and existing PostgreSQL volume.
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: tendergraph-api:local
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-tendergraph}
+      POSTGRES_USER: ${POSTGRES_USER:-tendergraph}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      # Native Mac mode remains the recommended workflow for local Ollama.
+      # Loopback inside this container cannot reach the host's Ollama daemon.
+      RAG_PROVIDER: evidence
+    ports:
+      - "127.0.0.1:${API_PORT:-8000}:8000"
+    volumes:
+      - tendergraph_model_cache:/home/tendergraph/.cache/huggingface
+      - ../data/refresh:/app/data/refresh:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /home/tendergraph/.cache/uv:uid=10001,gid=10001
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+    init: true
+
+volumes:
+  tendergraph_model_cache:

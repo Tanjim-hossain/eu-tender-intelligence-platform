@@ -2,8 +2,6 @@ name: CI
 
 on:
   push:
-    branches:
-      - main
   pull_request:
     branches:
       - main
@@ -38,4 +36,29 @@ jobs:
         run: uv sync --frozen
 
       - name: Run quality gate
+        env:
+          HF_HUB_OFFLINE: "1"
+          TRANSFORMERS_OFFLINE: "1"
+          RAG_PROVIDER: evidence
         run: make check
+
+      - name: Verify distribution packaging
+        run: make package
+
+  container:
+    name: Build API image (no publish)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build image
+        run: docker build --tag tendergraph-api:ci .
+      - name: Check installed API without model or database
+        run: >-
+          docker run --rm --network none
+          --entrypoint uv tendergraph-api:ci
+          run --no-project --python /app/.venv/bin/python --no-sync python -c
+          "from fastapi.testclient import TestClient; from tendergraph.api.app import create_app;
+          c = TestClient(create_app(use_lifespan=False));
+          assert c.get('/').status_code == 200;
+          assert c.get('/assets/app.js').status_code == 200"

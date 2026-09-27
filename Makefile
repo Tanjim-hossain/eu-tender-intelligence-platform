@@ -37,3 +37,21 @@ refresh:
 
 scheduled-refresh:
 	bash scripts/run_scheduled_refresh.sh $(SCHEDULE_ARGS)
+
+.PHONY: repair-embeddings package app-build app-up app-stop
+repair-embeddings:
+	uv run --frozen --env-file .env python scripts/repair_embeddings.py
+
+package:
+	uv build
+	uv run --frozen python scripts/check_wheel.py
+
+app-build:
+	$(COMPOSE) -f infra/compose.app.yml build api
+
+app-up:
+	mkdir -p data/refresh
+	$(COMPOSE) -f infra/compose.app.yml up -d api
+
+app-stop:
+	$(COMPOSE) -f infra/compose.app.yml stop api

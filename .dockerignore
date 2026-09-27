@@ -1,0 +1,11 @@
+# Explicit allowlist: credentials, database/data artifacts and Git never enter context.
+**
+!Dockerfile
+!.dockerignore
+!pyproject.toml
+!uv.lock
+!README.md
+!src/
+!src/**
+**/__pycache__/
+**/*.pyc

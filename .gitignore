@@ -57,3 +57,7 @@ evaluation/answers/reports/*.json
 
 # Local refresh audit and operational artifacts
 data/refresh/
+
+# Build outputs
+build/
+dist/
