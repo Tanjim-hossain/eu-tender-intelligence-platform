@@ -1,191 +1,173 @@
 # TenderGraph — European Tender Intelligence
 
-TenderGraph ingests TED procurement notices, normalizes them into a typed Silver
-dataset, and combines PostgreSQL full-text search with multilingual semantic
-retrieval. It exposes search and evidence-backed question answering through FastAPI.
+Search multilingual European procurement notices and inspect the evidence behind
+each answer. TenderGraph connects official TED data to an incremental PostgreSQL
+pipeline, hybrid retrieval, and a local AI workspace.
 
-Built by Tanjim Hossain. Python 3.12+, PostgreSQL 16 with pgvector, Polars, dbt,
-Sentence Transformers, and FastAPI.
+Built by **Tanjim Hossain**. Python · PostgreSQL/pgvector · dbt · FastAPI · Ollama.
 
-## Current capabilities
+## What this project demonstrates
 
-- TED pagination, retry handling, Bronze manifests, and normalized Silver data.
-- PostgreSQL loading, typed amounts/deadlines, and dbt analytical marts.
-- Lexical and multilingual-e5-small vector retrieval with weighted reciprocal rank fusion.
-- Optional multilingual cross-encoder reranking using the existing evaluation model.
-- `POST /search` for ranked notices; `POST /ask` for source evidence or generated answers.
-- Browser workspace at `/`: responsive tender search, questions, selected sources, and answer JSON download.
-- Stable citation IDs linked to actual retrieved notices and TED source URLs.
-- No-generation default; optional local Ollama or explicitly configured OpenAI generation.
+- **Data engineering:** immutable Bronze runs, typed Silver normalization, validation,
+  transactional notice UPSERTs, selective vector updates, dbt marts and refresh audits.
+- **Information retrieval:** PostgreSQL full-text search and multilingual-e5-small
+  embeddings, combined with weighted reciprocal rank fusion and evaluated against
+  a small judged query set.
+- **Applied AI:** local question answering with explicit evidence selection,
+  citation validation, abstention, and links back to official notices.
+- **Operations:** overlapping date-window refreshes, a macOS scheduler wrapper,
+  freshness monitoring, deterministic CI checks and optional API container packaging.
 
-## Continue with the existing Mac setup
+![TenderGraph workspace — synthetic test data](evaluation/answers/browser/desktop.png)
 
-Keep your current `.env`, Docker volume, and Git history. Merge the updated source
-into your existing project folder using `START_HERE.md`. This source-only archive
-does not include your local data, model weights, or database. Do not replace your password with the example
-value. This update does not require a database reload or schema migration.
+The screenshot is a browser-test fixture, not a live procurement result.
 
-From the project root:
+## Architecture
+
+```mermaid
+flowchart TD
+    A["TED date window"] --> B["Immutable Bronze run"]
+    B --> C["Validated Silver artifact"]
+    C --> D["PostgreSQL UPSERT"]
+    D --> E["Missing or changed embeddings"]
+    E --> F["dbt build and refresh audit"]
+    D --> G["Lexical and vector retrieval"]
+    E --> G
+    G --> H["Weighted RRF"]
+    H --> I["FastAPI and evidence selection"]
+    I --> J["Tender Explorer and cited answers"]
+```
+
+See [architecture and consistency](docs/ARCHITECTURE.md) for failure boundaries,
+retained artifacts and recovery behavior.
+
+## Run locally
+
+Requires Python 3.12, uv, Docker with Compose, and internet access for the initial
+package/model downloads. For generated answers, run Ollama with the installed
+`qwen3:4b-instruct` model. No paid API is required.
+
+**Existing project:** keep your `.env`, data, Docker volume and installed models.
+Follow [START_HERE.md](START_HERE.md) to apply this update.
 
 ```bash
 uv sync --frozen
-docker compose --env-file .env -f infra/compose.yml up -d
-uv run --frozen uvicorn tendergraph.api.app:app --host 127.0.0.1 --port 8000
+make db-up
+make db-health
+make serve
 ```
 
-Open <http://127.0.0.1:8000> for the browser workspace. This keeps the provider
-and installed model already configured in your `.env`. To explicitly use evidence
-mode for a run, prefix the server command with `RAG_PROVIDER=evidence`.
+Open **http://127.0.0.1:8000**. Search for `hospital information system`, then ask
+“Who is the buyer, and what deadline is stated?” Follow the cited TED notice and
+optionally download the answer JSON.
 
-The CLI is also available from a second terminal in the same project:
+**New checkout:** first copy `.env.example` to `.env`, set your own database password,
+and install/start Ollama if using the example's local AI mode. After starting
+PostgreSQL, ingest an initial window with actual notices:
 
 ```bash
-uv run --frozen python scripts/ask_tenders.py \
-  "Who is the buyer and what deadline is stated?" \
-  --query "hospital information system" --limit 3
-```
-
-Interactive API documentation: <http://127.0.0.1:8000/docs>.
-You can call `/ask` there without using the CLI.
-
-## Answer modes
-
-| `RAG_PROVIDER` | Behavior | Generation requirements |
-| --- | --- | --- |
-| `evidence` (default) | Returns retrieved facts and source links, labelled `evidence_only` | No LLM, no API key |
-| `ollama` | Generates an answer using a local model and checks citation IDs | Local Ollama daemon and an explicitly selected installed model |
-| `openai` | Uses the existing Responses API provider and checks citation IDs | Explicit model and API credentials; usage can incur charges |
-
-Evidence mode is a retrieval report, **not** an AI-written answer. Search matches
-are not a guarantee of suitability or eligibility. The retrieval encoder still
-runs locally; its model weights must be present or downloaded on first startup.
-
-### Local generation with Ollama
-
-Install and start Ollama, download a model suitable for your machine, and use
-`ollama list` to find its exact local tag. Put these values in `.env`:
-
-```dotenv
-RAG_PROVIDER=ollama
-RAG_MODEL=your-installed-local-model-tag
-RAG_OLLAMA_URL=http://127.0.0.1:11434
-RAG_MAX_OUTPUT_TOKENS=800
-RAG_TIMEOUT_SECONDS=120
-```
-
-Replace the model placeholder, then restart the API **without** the evidence-mode
-shell override:
-
-```bash
-uv run --frozen uvicorn tendergraph.api.app:app --host 127.0.0.1 --port 8000
-```
-
-This adapter calls the loopback daemon's
-[`POST /api/generate`](https://docs.ollama.com/api/generate) endpoint with streaming
-disabled. Model installation is a separate step; this project never pulls a model
-on your behalf. Use a local model, not an Ollama cloud-backed model. Inference
-uses your computer's memory and processing resources.
-
-### Optional paid generation
-
-Set `RAG_PROVIDER=openai`, `RAG_MODEL` to a model available to your API account, and
-`OPENAI_API_KEY` in `.env`, then restart the API. The application never changes
-providers automatically. Merely having an API key present does not enable paid
-generation. The `/ask` payload cannot override the server's provider or model.
-There are no automatic generation retries or fallback to a paid provider.
-
-### Optional reranking
-
-Set `RAG_RERANK=true` and restart to score retrieved candidates with the existing
-cross-encoder before selecting evidence. Default is false: the uploaded evaluation
-showed mixed metric changes and extra latency. Enabling it may download another
-model on first startup. Reranking does not call a paid generation API.
-
-## API contract
-
-```bash
-curl -sS http://127.0.0.1:8000/ask \
-  -H 'Content-Type: application/json' \
-  -d '{"question":"Who is the buyer?","query":"cloud platform","evidence_limit":3,"retrieval_depth":20}'
-```
-
-`question` is required. `query` optionally gives retrieval a short topic phrase;
-otherwise the question is the retrieval query. `evidence_limit` is 1–10 and
-`retrieval_depth` is at least that limit, at most 100.
-
-The response includes `answer`, `mode`, `status`, `citations`, `sources`, and
-`context_truncated`. `sources` maps citation IDs to publication numbers, buyer
-details, deadlines, amounts, and source URLs. Missing values remain null in JSON
-and “Not stated” in formatted evidence. Decimal amounts serialize as strings.
-
-- `evidence_only`: retrieved facts, with no generated interpretation.
-- `answered`: generated text passed citation-ID checks.
-- `no_results`: retrieval returned no notices; the generator was not called.
-- `insufficient_evidence`: candidates were retrieved, but the model selected none;
-  returns a fixed insufficiency message and no citations or sources.
-- HTTP 422: invalid request, including an attempt to select a provider in the body.
-- HTTP 502: generated answer failed citation validation or evidence cannot fit the budget.
-- HTTP 503: the configured generator or database is unavailable.
-
-Citation checks reject empty, uncited, or unknown-reference answers. They **do not
-prove factual entailment** or that every claim is supported. Treat generated answers
-as reviewable summaries and inspect the linked notices. The prompt treats tender
-text as untrusted evidence, but prompting alone cannot eliminate prompt injection.
-There is no calibrated relevance threshold or automatic eligibility decision.
-
-Generated contexts use a character budget (`RAG_MAX_CONTEXT_CHARS`, default 40000).
-Long descriptions are marked as truncated, and lower-ranked notices are omitted
-if needed. `context_truncated` discloses this. In generated mode, returned sources
-match the validated relevance selection; evidence mode returns retrieved evidence.
-The model contract is `RELEVANT: T1,T2` followed by `ANSWER:` and cited prose,
-or `RELEVANT: NONE`. Unknown, duplicate, uncited, or unselected IDs are rejected.
-A character budget is not an exact model token limit. For a small
-local context window, lower this setting and/or `evidence_limit`.
-
-## Fresh database setup (only when needed)
-
-The existing Mac database can be reused. For a new local database, copy
-`.env.example` to `.env`, choose a password, start the Compose service, then:
-
-```bash
-uv run --frozen python scripts/load_silver_postgres.py data/silver/ted/tenders.parquet
+make refresh START_DATE=2026-09-21 END_DATE=2026-09-25
 uv run --frozen python scripts/search_tenders.py "cloud platform" --limit 1
-uv run --frozen python scripts/load_semantic_embeddings.py
+make serve
 ```
 
-The first command reloads `silver.tenders`; do not run it merely to upgrade the API.
-The second ensures the lexical column/index exists. The third uses your existing
-local semantic index; if that index is missing or stale, rebuild it first with
-`scripts/build_semantic_index.py`. TED snapshots and embedding indexes must refer
-to the same corpus. No ingestion or paid API call is required for this update.
+The lexical search command installs the generated full-text column and GIN index
+idempotently. Initial refresh creates Silver/vector tables and runs dbt. If the
+initial window has no notices, choose a populated window: a zero-result refresh
+cannot bootstrap an empty database's schema. The example dates reproduce a
+workflow, not the original historical dataset. No data or model weights ship in Git.
 
-## Verification and remaining work
+## Refresh and operations
 
 ```bash
-uv run --frozen ruff check .
-uv run --frozen mypy src scripts
-uv run --frozen pytest -q
-uv run --frozen python scripts/evaluate_answers.py
+make refresh START_DATE=2026-09-25 END_DATE=2026-09-26 COUNTRIES="BEL NLD DEU ITA"
+make scheduled-refresh
+curl -fsS http://127.0.0.1:8000/operations/status
 ```
 
-See `WORK_UPDATE.md` for this change's validation and limits. Original retrieval
-evaluations remain in `evaluation/retrieval/`; this update does not claim new
-retrieval quality or model accuracy results.
+The scheduled wrapper uses an inclusive three-day window ending at UTC yesterday.
+Each run records retrieved/normalized counts, inserted/updated/unchanged notices,
+embedding work, dbt outcome and failures under `data/refresh/`. Normal refreshes
+preserve notices outside the requested window. Run refreshes serially.
 
-The default answer evaluation replays 14 hand-authored contract cases without any
-model or database call. To evaluate your configured local Ollama model on six
-fixed synthetic-evidence cases:
+A failed embedding stage can be retried even if Silver already committed. A
+subsequent non-empty refresh reconciles missing/outdated vectors; for recovery
+without another TED request use `make repair-embeddings`, then rerun dbt as described
+in [operations](docs/OPERATIONS.md). Zero-match windows retain the existing no-op
+behavior for Silver and embeddings, while still running dbt validation.
+
+## Retrieval results
+
+Macro averages across **8 queries and 288 judged query–notice pairs** from the
+committed historical evaluation. These are existing results, not a new benchmark.
+| System | P@10 | Recall@10 | MRR@10 | nDCG@10 |
+| --- | ---: | ---: | ---: | ---: |
+| Lexical | 0.2375 | 0.1040 | 0.4375 | 0.2317 |
+| Semantic | 0.6125 | 0.4208 | 0.8750 | 0.6183 |
+| Weighted hybrid RRF | 0.6625 | 0.4622 | 0.9375 | 0.6832 |
+| Experimental cross-encoder | 0.7000 | 0.4809 | 0.8375 | 0.7054 |
+
+Production settings remain lexical weight **1.0**, semantic weight **1.25**, RRF
+**k=60**, candidate depth **20**. Cross-encoder reranking remains experimental and
+disabled by default. The small development set is insufficient for generalization
+claims or further tuning. See [evaluation evidence](docs/EVALUATION.md) for metric
+definitions, provenance and limitations.
+
+## Answers and API
+
+The example local configuration selects Ollama; the code's unconfigured fallback
+remains `evidence`. `RAG_PROVIDER=evidence make serve` returns evidence without LLM
+generation. Existing OpenAI support remains explicit opt-in, with no paid fallback.
+
+| Endpoint | Purpose |
+| --- | --- |
+| `GET /` | Tender Explorer / Evidence Workspace |
+| `POST /search` | Ranked lexical + semantic results |
+| `POST /ask` | Evidence or generated answer, citations and selected sources |
+| `GET /health` | Database connectivity after application startup |
+| `GET /operations/status` | Audit-derived refresh status and freshness |
+| `GET /config` | Public mode/model/reranking settings; no credentials |
+| `GET /docs` | Interactive request and response schemas |
 
 ```bash
-uv run --frozen python scripts/evaluate_answers.py --live
+curl -fsS http://127.0.0.1:8000/ask \
+  -H 'Content-Type: application/json' \
+  -d '{"question":"Who is the buyer?","query":"hospital information system","evidence_limit":3,"retrieval_depth":20}'
 ```
 
-The live runner requires `RAG_PROVIDER=ollama`; it cannot use the paid provider.
-Reports are written to `evaluation/answers/reports/`. It checks ID selection and
-format, with manual review criteria for factual support. This is not a retrieval
-benchmark or automatic factual-entailment score. See `evaluation/answers/README.md`.
+Answer states are `answered`, `evidence_only`, `no_results` and
+`insufficient_evidence`. Generated output must select known IDs and cite exactly
+that selection. `RELEVANT: NONE` becomes a fixed insufficiency message with no
+sources. Missing facts remain missing; amounts serialize as decimal strings.
+Context truncation is disclosed. Citation validity does **not** establish factual
+entailment, relevance, eligibility or resistance to all prompt injection.
 
-Next milestones: run the updated workspace against the existing Mac database and
-Ollama model, review the six model outputs, then implement scheduled ingestion and
-choose deployment requirements. This local application has no authentication or
-rate limiting and should not be exposed publicly as-is.
+## Quality and reproducibility
+
+```bash
+make check          # Ruff, mypy, pytest, offline answer-contract replay
+make package        # sdist/wheel build and browser-asset packaging check
+make evaluate-local # explicitly calls your configured local Ollama model
+uv run --frozen python scripts/summarize_retrieval.py
+```
+
+`make check` needs no TED service, PostgreSQL, Ollama or API key. CI runs it with
+model downloads disabled, verifies distribution packaging, and builds/import-checks
+the API container without starting a database/model. Hosted CI has not yet been
+executed for this repository. Browser tests and local live tests are documented
+separately in [evaluation/answers/README.md](evaluation/answers/README.md).
+
+See [WORK_UPDATE.md](WORK_UPDATE.md) for exactly what was executed in this delivery.
+
+## Deployment scope
+
+The native Mac workflow is the primary local demo. An opt-in non-root API image
+and Compose overlay are included; see [deployment assessment](docs/DEPLOYMENT.md).
+The overlay uses evidence mode because container loopback cannot reach the Mac's
+Ollama daemon. It reuses the same PostgreSQL Compose project and volume.
+
+This is a portfolio-ready local application, **not a verified public production
+service**. It has no public authentication or request rate limits. Do not expose
+it publicly without access control, TLS, resource limits, backups and deployment
+validation. Historical evaluation artifacts are retained; live data, secrets and
+audit logs stay out of Git. No hosted service has been deployed.

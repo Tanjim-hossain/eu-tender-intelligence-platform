@@ -1,0 +1,25 @@
+uv run --frozen ruff check .
+All checks passed!
+uv run --frozen mypy src scripts
+Success: no issues found in 85 source files
+uv run --frozen pytest -q
+........................................................................ [ 33%]
+........................................................................ [ 66%]
+.......................................................................  [100%]
+215 passed in 7.15s
+uv run --frozen python scripts/evaluate_answers.py
+{
+  "mode": "contract_replay",
+  "total": 14,
+  "passed": 14,
+  "failed": 0,
+  "pass_rate": 1.0,
+  "output": "/workspace/scratch/afc323e78b44/handoff/eu-tender-intelligence-platform/evaluation/answers/reports/contract_replay.json"
+}
+uv build
+Building source distribution...
+Building wheel from source distribution...
+Successfully built dist/tendergraph-0.1.0.tar.gz
+Successfully built dist/tendergraph-0.1.0-py3-none-any.whl
+uv run --frozen python scripts/check_wheel.py
+Wheel assets verified: dist/tendergraph-0.1.0-py3-none-any.whl
