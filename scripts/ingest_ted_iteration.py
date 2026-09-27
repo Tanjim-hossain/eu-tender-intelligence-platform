@@ -4,37 +4,17 @@ import argparse
 from collections.abc import Sequence
 from datetime import date
 
-from tendergraph.ingestion.client import TedClient
-from tendergraph.ingestion.models import (
-    TedSearchRequest,
+from tendergraph.ingestion.client import (
+    TedIterationPage,
+)
+from tendergraph.ingestion.runner import (
+    ingest_ted_window,
 )
 from tendergraph.ingestion.window import (
     DEFAULT_COUNTRIES,
-    build_publication_window_query,
     normalize_country_codes,
 )
-from tendergraph.storage.iteration_run import (
-    IterationRunWriter,
-)
-
-FIELDS = [
-    "publication-number",
-    "publication-date",
-    "notice-title",
-    "buyer-name",
-    "buyer-country",
-    "classification-cpv",
-    "notice-type",
-    "description-proc",
-    "description-lot",
-    "procedure-type",
-    "contract-nature",
-    "deadline",
-    "estimated-value-proc",
-    "estimated-value-cur-proc",
-    "place-of-performance-country-proc",
-    "place-of-performance-subdiv-proc",
-]
+from tendergraph.storage.bronze import BronzeArtifact
 
 DEFAULT_START_DATE = date(
     2026,
@@ -53,7 +33,9 @@ def _parse_iso_date(
     value: str,
 ) -> date:
     try:
-        return date.fromisoformat(value)
+        return date.fromisoformat(
+            value
+        )
     except ValueError as exc:
         raise argparse.ArgumentTypeError(
             "Expected date in YYYY-MM-DD format"
@@ -109,7 +91,9 @@ def parse_args(
         "--countries",
         nargs="+",
         type=_parse_country,
-        default=list(DEFAULT_COUNTRIES),
+        default=list(
+            DEFAULT_COUNTRIES
+        ),
         metavar="ISO3",
         help=(
             "Buyer-country ISO3 codes separated "
@@ -117,9 +101,14 @@ def parse_args(
         ),
     )
 
-    args = parser.parse_args(argv)
+    args = parser.parse_args(
+        argv
+    )
 
-    if args.end_date < args.start_date:
+    if (
+        args.end_date
+        < args.start_date
+    ):
         parser.error(
             "--end-date must be on or after "
             "--start-date"
@@ -130,39 +119,40 @@ def parse_args(
             args.countries
         )
     except ValueError as exc:
-        parser.error(str(exc))
+        parser.error(
+            str(exc)
+        )
 
     return args
+
+
+def _print_page(
+    page: TedIterationPage,
+    artifact: BronzeArtifact,
+    total_retrieved: int,
+) -> None:
+    page_count = len(
+        page.result.parsed.notices
+    )
+
+    print(
+        f"Page {page.page_number:02d}: "
+        f"{page_count:3d} records "
+        f"| cumulative={total_retrieved} "
+        f"| sha256={artifact.sha256[:12]}..."
+    )
 
 
 def main(
     argv: Sequence[str] | None = None,
 ) -> None:
-    args = parse_args(argv)
-
-    query = build_publication_window_query(
-        start_date=args.start_date,
-        end_date=args.end_date,
-        countries=args.countries,
+    args = parse_args(
+        argv
     )
 
-    request = TedSearchRequest(
-        query=query,
-        fields=FIELDS,
-        limit=250,
+    print(
+        "=== TED FULL BRONZE INGESTION ==="
     )
-
-    client = TedClient()
-    writer = IterationRunWriter()
-
-    total_source_matches: int | None = None
-    total_retrieved = 0
-
-    publication_numbers: set[str] = set()
-    duplicate_count = 0
-
-    print("=== TED FULL BRONZE INGESTION ===")
-    print(f"Run ID: {writer.run_id}")
     print(
         "Window: "
         f"{args.start_date.isoformat()} "
@@ -173,120 +163,59 @@ def main(
         "Countries: "
         f"{' '.join(args.countries)}"
     )
-    print(f"Query: {query}")
     print()
 
-    for page in client.iterate(request):
-        parsed = page.result.parsed
-
-        if total_source_matches is None:
-            total_source_matches = (
-                parsed.total_notice_count
-            )
-
-        page_count = len(parsed.notices)
-        total_retrieved += page_count
-
-        if (
-            total_source_matches is not None
-            and total_retrieved
-            > total_source_matches
-        ):
-            raise RuntimeError(
-                "Retrieved more TED records than "
-                "totalNoticeCount: "
-                f"{total_retrieved}/"
-                f"{total_source_matches}"
-            )
-
-        for notice in parsed.notices:
-            publication_number = (
-                notice.publication_number
-            )
-
-            if (
-                publication_number
-                in publication_numbers
-            ):
-                duplicate_count += 1
-            else:
-                publication_numbers.add(
-                    publication_number
-                )
-
-        artifact = writer.write_page(page)
-
-        print(
-            f"Page {page.page_number:02d}: "
-            f"{page_count:3d} records "
-            f"| cumulative={total_retrieved} "
-            f"| sha256={artifact.sha256[:12]}..."
-        )
-
-    if total_source_matches is None:
-        raise RuntimeError(
-            "TED returned no iteration pages"
-        )
-
-    completed = (
-        total_retrieved
-        == total_source_matches
-    )
-
-    run_artifact = writer.finalize(
-        request=request,
-        total_source_matches=(
-            total_source_matches
-        ),
-        unique_publication_numbers=len(
-            publication_numbers
-        ),
-        duplicate_publication_numbers=(
-            duplicate_count
-        ),
-        status=(
-            "completed"
-            if completed
-            else "failed"
-        ),
+    result = ingest_ted_window(
+        start_date=args.start_date,
+        end_date=args.end_date,
+        countries=args.countries,
+        on_page=_print_page,
     )
 
     print()
-    print("=== RUN SUMMARY ===")
     print(
-        "Source matches:    "
-        f"{total_source_matches}"
+        "=== RUN SUMMARY ==="
     )
     print(
-        "Records retrieved: "
-        f"{total_retrieved}"
+        f"Run ID:            "
+        f"{result.run_artifact.run_id}"
     )
     print(
-        "Unique notices:    "
-        f"{len(publication_numbers)}"
+        f"Query:             "
+        f"{result.query}"
     )
     print(
-        "Duplicates:        "
-        f"{duplicate_count}"
+        f"Source matches:    "
+        f"{result.total_source_matches}"
     )
     print(
-        "Pages:             "
-        f"{run_artifact.page_count}"
+        f"Records retrieved: "
+        f"{result.records_retrieved}"
     )
     print(
-        "Status:            "
-        f"{run_artifact.status}"
+        f"Unique notices:    "
+        f"{result.unique_publication_numbers}"
     )
     print(
-        "Manifest:          "
-        f"{run_artifact.manifest_path}"
+        f"Duplicates:        "
+        f"{result.duplicate_publication_numbers}"
     )
-
-    if not completed:
-        raise RuntimeError(
-            "TED iteration ended before all "
-            "reported records were retrieved"
-        )
+    print(
+        f"Pages:             "
+        f"{result.run_artifact.page_count}"
+    )
+    print(
+        f"Status:            "
+        f"{result.run_artifact.status}"
+    )
+    print(
+        f"Run directory:     "
+        f"{result.run_artifact.run_dir}"
+    )
+    print(
+        f"Manifest:          "
+        f"{result.run_artifact.manifest_path}"
+    )
 
 
 if __name__ == "__main__":
