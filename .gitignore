@@ -54,3 +54,6 @@ data/backups/
 
 # Generated answer-evaluation reports
 evaluation/answers/reports/*.json
+
+# Local refresh audit and operational artifacts
+data/refresh/
