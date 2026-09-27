@@ -1,4 +1,4 @@
-.PHONY: install check serve evaluate evaluate-local db-up db-health refresh
+.PHONY: install check serve evaluate evaluate-local db-up db-health refresh scheduled-refresh
 
 COMPOSE := docker compose --env-file .env -f infra/compose.yml
 COUNTRIES ?= BEL NLD DEU ITA
@@ -34,3 +34,6 @@ refresh:
 		--start-date "$(START_DATE)" \
 		--end-date "$(END_DATE)" \
 		--countries $(COUNTRIES)
+
+scheduled-refresh:
+	bash scripts/run_scheduled_refresh.sh $(SCHEDULE_ARGS)
