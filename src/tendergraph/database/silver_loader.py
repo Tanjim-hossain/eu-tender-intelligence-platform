@@ -53,6 +53,22 @@ COPY_COLUMNS = (
     "source",
 )
 
+UPDATE_COLUMNS = tuple(
+    column
+    for column in COPY_COLUMNS
+    if column != "publication_number"
+)
+
+# A new Bronze run_id alone must not make an
+# otherwise identical tender look materially changed.
+MATERIAL_COLUMNS = tuple(
+    column
+    for column in UPDATE_COLUMNS
+    if column != "ingestion_run_id"
+)
+
+STAGE_TABLE_NAME = "_tendergraph_silver_stage"
+
 CREATE_SCHEMA_SQL = """
 CREATE SCHEMA IF NOT EXISTS silver;
 """
@@ -104,26 +120,30 @@ CREATE TABLE IF NOT EXISTS silver.tenders (
 );
 """
 
-# The original v1 table already exists on upgraded
-# installations. The table is truncated before this
-# migration, so new NOT NULL array columns can be added
-# safely without synthetic defaults.
+# Backward-compatible migration for installations created
+# before the enriched Silver schema. Empty arrays are valid
+# normalized values for these optional repeated fields.
 MIGRATE_TABLE_SQL = """
 ALTER TABLE silver.tenders
     ADD COLUMN IF NOT EXISTS description TEXT,
     ADD COLUMN IF NOT EXISTS description_language TEXT,
-    ADD COLUMN IF NOT EXISTS lot_descriptions TEXT[] NOT NULL,
+    ADD COLUMN IF NOT EXISTS lot_descriptions TEXT[] NOT NULL
+        DEFAULT '{}'::TEXT[],
     ADD COLUMN IF NOT EXISTS lot_description_language TEXT,
     ADD COLUMN IF NOT EXISTS lot_description_text TEXT,
     ADD COLUMN IF NOT EXISTS procedure_type TEXT,
-    ADD COLUMN IF NOT EXISTS contract_natures TEXT[] NOT NULL,
-    ADD COLUMN IF NOT EXISTS deadlines TIMESTAMPTZ[] NOT NULL,
+    ADD COLUMN IF NOT EXISTS contract_natures TEXT[] NOT NULL
+        DEFAULT '{}'::TEXT[],
+    ADD COLUMN IF NOT EXISTS deadlines TIMESTAMPTZ[] NOT NULL
+        DEFAULT '{}'::TIMESTAMPTZ[],
     ADD COLUMN IF NOT EXISTS earliest_deadline TIMESTAMPTZ,
     ADD COLUMN IF NOT EXISTS latest_deadline TIMESTAMPTZ,
     ADD COLUMN IF NOT EXISTS estimated_value NUMERIC,
     ADD COLUMN IF NOT EXISTS estimated_value_currency TEXT,
-    ADD COLUMN IF NOT EXISTS performance_countries TEXT[] NOT NULL,
-    ADD COLUMN IF NOT EXISTS performance_regions TEXT[] NOT NULL;
+    ADD COLUMN IF NOT EXISTS performance_countries TEXT[] NOT NULL
+        DEFAULT '{}'::TEXT[],
+    ADD COLUMN IF NOT EXISTS performance_regions TEXT[] NOT NULL
+        DEFAULT '{}'::TEXT[];
 """
 
 
@@ -131,7 +151,20 @@ ALTER TABLE silver.tenders
 class LoadSummary:
     parquet_rows: int
     inserted_rows: int
+    updated_rows: int
+    unchanged_rows: int
     database_rows: int
+    inserted_publication_numbers: tuple[str, ...]
+    updated_publication_numbers: tuple[str, ...]
+
+    @property
+    def changed_publication_numbers(
+        self,
+    ) -> tuple[str, ...]:
+        return (
+            *self.inserted_publication_numbers,
+            *self.updated_publication_numbers,
+        )
 
 
 def _validate_utc_datetime(
@@ -218,7 +251,7 @@ def load_silver_tenders(
     parquet_path: Path,
     settings: DatabaseSettings,
 ) -> LoadSummary:
-    """Atomically replace PostgreSQL Silver tenders."""
+    """Incrementally upsert validated Silver tenders."""
 
     frame = pl.read_parquet(
         parquet_path
@@ -230,15 +263,119 @@ def load_silver_tenders(
 
     expected_rows = quality.row_count
 
+    column_list = sql.SQL(", ").join(
+        sql.Identifier(column)
+        for column in COPY_COLUMNS
+    )
+
     copy_statement = sql.SQL(
-        "COPY {}.{} ({}) FROM STDIN"
+        "COPY {} ({}) FROM STDIN"
+    ).format(
+        sql.Identifier(STAGE_TABLE_NAME),
+        column_list,
+    )
+
+    target_material = sql.SQL(", ").join(
+        sql.SQL("target.{}").format(
+            sql.Identifier(column)
+        )
+        for column in MATERIAL_COLUMNS
+    )
+
+    stage_material = sql.SQL(", ").join(
+        sql.SQL("stage.{}").format(
+            sql.Identifier(column)
+        )
+        for column in MATERIAL_COLUMNS
+    )
+
+    excluded_material = sql.SQL(", ").join(
+        sql.SQL("EXCLUDED.{}").format(
+            sql.Identifier(column)
+        )
+        for column in MATERIAL_COLUMNS
+    )
+
+    update_assignments = sql.SQL(", ").join(
+        sql.SQL("{} = EXCLUDED.{}").format(
+            sql.Identifier(column),
+            sql.Identifier(column),
+        )
+        for column in UPDATE_COLUMNS
+    )
+
+    create_stage_statement = sql.SQL(
+        """
+        CREATE TEMP TABLE {}
+        ON COMMIT DROP
+        AS
+        SELECT {}
+        FROM {}.{}
+        WITH NO DATA
+        """
+    ).format(
+        sql.Identifier(STAGE_TABLE_NAME),
+        column_list,
+        sql.Identifier(SCHEMA_NAME),
+        sql.Identifier(TABLE_NAME),
+    )
+
+    inserted_ids_statement = sql.SQL(
+        """
+        SELECT stage.publication_number
+        FROM {} AS stage
+        LEFT JOIN {}.{} AS target
+            ON target.publication_number
+                = stage.publication_number
+        WHERE target.publication_number IS NULL
+        ORDER BY stage.publication_number
+        """
+    ).format(
+        sql.Identifier(STAGE_TABLE_NAME),
+        sql.Identifier(SCHEMA_NAME),
+        sql.Identifier(TABLE_NAME),
+    )
+
+    updated_ids_statement = sql.SQL(
+        """
+        SELECT stage.publication_number
+        FROM {} AS stage
+        JOIN {}.{} AS target
+            ON target.publication_number
+                = stage.publication_number
+        WHERE ROW({})
+            IS DISTINCT FROM ROW({})
+        ORDER BY stage.publication_number
+        """
+    ).format(
+        sql.Identifier(STAGE_TABLE_NAME),
+        sql.Identifier(SCHEMA_NAME),
+        sql.Identifier(TABLE_NAME),
+        target_material,
+        stage_material,
+    )
+
+    upsert_statement = sql.SQL(
+        """
+        INSERT INTO {}.{} AS target ({})
+        SELECT {}
+        FROM {} AS stage
+        ON CONFLICT (publication_number)
+        DO UPDATE SET
+            {},
+            loaded_at = NOW()
+        WHERE ROW({})
+            IS DISTINCT FROM ROW({});
+        """
     ).format(
         sql.Identifier(SCHEMA_NAME),
         sql.Identifier(TABLE_NAME),
-        sql.SQL(", ").join(
-            sql.Identifier(column)
-            for column in COPY_COLUMNS
-        ),
+        column_list,
+        column_list,
+        sql.Identifier(STAGE_TABLE_NAME),
+        update_assignments,
+        target_material,
+        excluded_material,
     )
 
     with psycopg.connect(
@@ -252,18 +389,28 @@ def load_silver_tenders(
             CREATE_TABLE_SQL
         )
 
-        # Keep the migration and replacement in one
-        # transaction. Any later failure rolls both
-        # schema changes and TRUNCATE back.
-        cursor.execute(
-            "TRUNCATE TABLE silver.tenders"
-        )
-
         cursor.execute(
             MIGRATE_TABLE_SQL
         )
 
-        inserted_rows = 0
+        cursor.execute(
+            create_stage_statement
+        )
+
+        cursor.execute(
+            sql.SQL(
+                """
+                ALTER TABLE {}
+                ADD PRIMARY KEY (
+                    publication_number
+                )
+                """
+            ).format(
+                sql.Identifier(
+                    STAGE_TABLE_NAME
+                )
+            )
+        )
 
         with cursor.copy(
             copy_statement
@@ -275,7 +422,95 @@ def load_silver_tenders(
                     _row_values(row)
                 )
 
-                inserted_rows += 1
+        cursor.execute(
+            sql.SQL(
+                "SELECT COUNT(*) FROM {}"
+            ).format(
+                sql.Identifier(
+                    STAGE_TABLE_NAME
+                )
+            )
+        )
+
+        stage_result = cursor.fetchone()
+
+        if stage_result is None:
+            raise RuntimeError(
+                "Unable to verify Silver stage"
+            )
+
+        stage_rows = int(
+            stage_result[0]
+        )
+
+        if stage_rows != expected_rows:
+            raise RuntimeError(
+                "Staged Silver row count mismatch: "
+                f"{stage_rows} != {expected_rows}"
+            )
+
+        # Serialize competing Silver writers while keeping
+        # readers available.
+        cursor.execute(
+            """
+            LOCK TABLE silver.tenders
+            IN SHARE ROW EXCLUSIVE MODE
+            """
+        )
+
+        cursor.execute(
+            inserted_ids_statement
+        )
+
+        inserted_publication_numbers = tuple(
+            str(row[0])
+            for row in cursor.fetchall()
+        )
+
+        cursor.execute(
+            updated_ids_statement
+        )
+
+        updated_publication_numbers = tuple(
+            str(row[0])
+            for row in cursor.fetchall()
+        )
+
+        inserted_rows = len(
+            inserted_publication_numbers
+        )
+
+        updated_rows = len(
+            updated_publication_numbers
+        )
+
+        unchanged_rows = (
+            expected_rows
+            - inserted_rows
+            - updated_rows
+        )
+
+        if unchanged_rows < 0:
+            raise RuntimeError(
+                "Incremental Silver classification "
+                "produced invalid row counts"
+            )
+
+        cursor.execute(
+            upsert_statement
+        )
+
+        affected_rows = cursor.rowcount
+
+        if affected_rows != (
+            inserted_rows + updated_rows
+        ):
+            raise RuntimeError(
+                "UPSERT affected an unexpected "
+                "number of rows: "
+                f"{affected_rows} != "
+                f"{inserted_rows + updated_rows}"
+            )
 
         cursor.execute(
             """
@@ -284,36 +519,66 @@ def load_silver_tenders(
             """
         )
 
-        result = cursor.fetchone()
+        database_result = cursor.fetchone()
 
-        if result is None:
+        if database_result is None:
             raise RuntimeError(
                 "PostgreSQL count query "
                 "returned no result"
             )
 
         database_rows = int(
-            result[0]
+            database_result[0]
         )
 
-        if inserted_rows != expected_rows:
+        cursor.execute(
+            sql.SQL(
+                """
+                SELECT COUNT(*)
+                FROM {}.{} AS target
+                JOIN {} AS stage
+                    ON target.publication_number
+                        = stage.publication_number
+                """
+            ).format(
+                sql.Identifier(SCHEMA_NAME),
+                sql.Identifier(TABLE_NAME),
+                sql.Identifier(
+                    STAGE_TABLE_NAME
+                ),
+            )
+        )
+
+        matched_result = cursor.fetchone()
+
+        if matched_result is None:
             raise RuntimeError(
-                "Loader inserted an unexpected "
-                "number of rows: "
-                f"{inserted_rows} != "
-                f"{expected_rows}"
+                "Unable to verify incoming "
+                "Silver rows"
             )
 
-        if database_rows != expected_rows:
+        matched_rows = int(
+            matched_result[0]
+        )
+
+        if matched_rows != expected_rows:
             raise RuntimeError(
-                "PostgreSQL row count does not "
-                "match Silver dataset: "
-                f"{database_rows} != "
+                "Not all incoming Silver rows "
+                "exist after UPSERT: "
+                f"{matched_rows} != "
                 f"{expected_rows}"
             )
 
     return LoadSummary(
         parquet_rows=expected_rows,
         inserted_rows=inserted_rows,
+        updated_rows=updated_rows,
+        unchanged_rows=unchanged_rows,
         database_rows=database_rows,
+        inserted_publication_numbers=(
+            inserted_publication_numbers
+        ),
+        updated_publication_numbers=(
+            updated_publication_numbers
+        ),
     )

@@ -5,6 +5,8 @@ import pytest
 
 from tendergraph.database.silver_loader import (
     COPY_COLUMNS,
+    MATERIAL_COLUMNS,
+    LoadSummary,
     _row_values,
 )
 
@@ -169,3 +171,31 @@ def test_row_values_rejects_float_value() -> None:
         match="Decimal",
     ):
         _row_values(row)
+
+
+
+def test_material_columns_ignore_run_lineage() -> None:
+    assert "title" in MATERIAL_COLUMNS
+    assert "ingestion_run_id" not in MATERIAL_COLUMNS
+    assert "publication_number" not in MATERIAL_COLUMNS
+
+
+def test_load_summary_exposes_changed_ids() -> None:
+    summary = LoadSummary(
+        parquet_rows=4,
+        inserted_rows=1,
+        updated_rows=1,
+        unchanged_rows=2,
+        database_rows=10,
+        inserted_publication_numbers=(
+            "100001-2026",
+        ),
+        updated_publication_numbers=(
+            "100002-2026",
+        ),
+    )
+
+    assert summary.changed_publication_numbers == (
+        "100001-2026",
+        "100002-2026",
+    )

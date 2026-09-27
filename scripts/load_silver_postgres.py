@@ -49,8 +49,20 @@ def main() -> None:
         f"{summary.inserted_rows}"
     )
     print(
+        f"Updated rows:  "
+        f"{summary.updated_rows}"
+    )
+    print(
+        f"Unchanged:     "
+        f"{summary.unchanged_rows}"
+    )
+    print(
         f"Database rows: "
         f"{summary.database_rows}"
+    )
+    print(
+        f"Changed IDs:   "
+        f"{len(summary.changed_publication_numbers)}"
     )
     print("Status:        completed")
 
