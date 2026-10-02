@@ -40,7 +40,7 @@ def main() -> None:
             title="Synthetic persistence smoke tender",
             buyer_name="Synthetic Buyer",
             buyer_country="BEL",
-            estimated_value=Decimal("250000"),
+            estimated_value=Decimal(250000),
             estimated_value_currency="EUR",
             earliest_deadline=datetime(
                 2026,
