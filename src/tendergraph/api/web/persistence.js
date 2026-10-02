@@ -4,6 +4,7 @@
   const PROFILE_KEY = "tendergraph.companyProfile.v1";
   const SAVED_KEY = "tendergraph.savedOpportunities.v1";
   const IGNORED_KEY = "tendergraph.ignoredOpportunities.v1";
+  const DIRTY_KEY = "tendergraph.persistenceDirty.v1";
   const TRACKED_KEYS = new Set([PROFILE_KEY, SAVED_KEY, IGNORED_KEY]);
   const nativeSetItem = Storage.prototype.setItem;
   const nativeRemoveItem = Storage.prototype.removeItem;
@@ -107,6 +108,8 @@
         method:"PUT",
         body:JSON.stringify(profile)
       });
+    } else if (state.profile) {
+      await request(`/product/accounts/${id}/profile`, {method:"DELETE"});
     }
     const desired = desiredOpportunityState();
     for (const [publicationNumber, value] of desired) {
@@ -123,9 +126,11 @@
         });
       }
     }
+    rawRemove(DIRTY_KEY);
   };
   const scheduleSync = () => {
     if (hydrating) return;
+    rawSet(DIRTY_KEY, "1");
     clearTimeout(syncTimer);
     syncTimer = setTimeout(() => {
       syncNow().catch((error) => console.warn("TenderGraph persistence sync failed", error));
@@ -135,6 +140,7 @@
     hydrating = true;
     try {
       if (state.profile) rawSet(PROFILE_KEY, JSON.stringify(state.profile));
+      else rawRemove(PROFILE_KEY);
       const saved = {};
       const ignored = [];
       (state.opportunities || []).forEach((item) => {
@@ -155,23 +161,28 @@
       });
       rawSet(SAVED_KEY, JSON.stringify(saved));
       rawSet(IGNORED_KEY, JSON.stringify(ignored));
+      rawRemove(DIRTY_KEY);
     } finally {
       hydrating = false;
     }
   };
   const bootstrap = async () => {
-    const hadAccount = Boolean(accountId);
     const hadLocalState = Boolean(
       localStorage.getItem(PROFILE_KEY)
       || localStorage.getItem(SAVED_KEY)
       || localStorage.getItem(IGNORED_KEY)
     );
+    const locallyDirty = localStorage.getItem(DIRTY_KEY) === "1";
     const id = await ensureAccount();
-    if (!hadAccount && hadLocalState) {
+    const state = await request(`/product/accounts/${id}/state`);
+    const serverHasState = Boolean(
+      state.profile
+      || (state.opportunities || []).length
+    );
+    if (locallyDirty || (hadLocalState && !serverHasState)) {
       await syncNow();
       return;
     }
-    const state = await request(`/product/accounts/${id}/state`);
     const before = [
       localStorage.getItem(PROFILE_KEY),
       localStorage.getItem(SAVED_KEY),
