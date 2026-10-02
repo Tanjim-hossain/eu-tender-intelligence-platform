@@ -51,6 +51,9 @@ jobs:
           node --check src/tendergraph/api/web/qualification.js
           node --check src/tendergraph/api/web/alerts.js
 
+      - name: Check scheduled refresh shell syntax
+        run: bash -n scripts/run_scheduled_refresh.sh
+
       - name: Verify distribution packaging
         run: make package
 
