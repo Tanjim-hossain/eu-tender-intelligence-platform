@@ -5,9 +5,7 @@ import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
 import {spawn} from 'node:child_process';
 import {mkdir, readFile} from 'node:fs/promises';
-import path from 'node:path';
-const require = createRequire(process.env.CODEX_PRIMARY_RUNTIME_NODE_MODULES
-  ? path.join(process.env.CODEX_PRIMARY_RUNTIME_NODE_MODULES, 'package.json') : import.meta.url);
+const require = createRequire(import.meta.url);
 const {chromium} = require('playwright');
 const origin = 'http://127.0.0.1:8876';
 const server = spawn('.venv/bin/python', ['-c', 'import uvicorn; from tendergraph.api.app import create_app; uvicorn.run(create_app(use_lifespan=False), host="127.0.0.1", port=8876, log_level="error")'], {stdio: ['ignore', 'ignore', 'inherit']});

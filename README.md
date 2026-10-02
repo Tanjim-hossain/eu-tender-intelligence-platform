@@ -1,12 +1,14 @@
 # TenderGraph — European Tender Intelligence
 
-Search multilingual European procurement notices and inspect the evidence behind
-each answer. TenderGraph connects official TED data to an incremental PostgreSQL
-pipeline, hybrid retrieval, and a local AI workspace.
+TenderGraph is a portfolio project I built to explore European public procurement
+data from TED and practice an end-to-end data engineering and information-retrieval
+workflow. It collects and normalizes tender notices, stores them in PostgreSQL,
+compares lexical and semantic search, and exposes the results through a small
+FastAPI web application.
 
 Built by **Tanjim Hossain**. Python · PostgreSQL/pgvector · dbt · FastAPI · Ollama.
 
-## What this project demonstrates
+## What I implemented
 
 - **Data engineering:** immutable Bronze runs, typed Silver normalization, validation,
   transactional notice UPSERTs, selective vector updates, dbt marts and refresh audits.
@@ -46,9 +48,6 @@ retained artifacts and recovery behavior.
 Requires Python 3.12, uv, Docker with Compose, and internet access for the initial
 package/model downloads. For generated answers, run Ollama with the installed
 `qwen3:4b-instruct` model. No paid API is required.
-
-**Existing project:** keep your `.env`, data, Docker volume and installed models.
-Follow [START_HERE.md](START_HERE.md) to apply this update.
 
 ```bash
 uv sync --frozen
@@ -107,7 +106,7 @@ committed historical evaluation. These are existing results, not a new benchmark
 | Weighted hybrid RRF | 0.6625 | 0.4622 | 0.9375 | 0.6832 |
 | Experimental cross-encoder | 0.7000 | 0.4809 | 0.8375 | 0.7054 |
 
-Production settings remain lexical weight **1.0**, semantic weight **1.25**, RRF
+The current retrieval settings use lexical weight **1.0**, semantic weight **1.25**, RRF
 **k=60**, candidate depth **20**. Cross-encoder reranking remains experimental and
 disabled by default. The small development set is insufficient for generalization
 claims or further tuning. See [evaluation evidence](docs/EVALUATION.md) for metric
@@ -153,21 +152,32 @@ uv run --frozen python scripts/summarize_retrieval.py
 
 `make check` needs no TED service, PostgreSQL, Ollama or API key. CI runs it with
 model downloads disabled, verifies distribution packaging, and builds/import-checks
-the API container without starting a database/model. Hosted CI has not yet been
-executed for this repository. Browser tests and local live tests are documented
+the API container without starting a database/model. Hosted CI is enabled and has
+been verified successfully on GitHub. Browser tests and local live tests are documented
 separately in [evaluation/answers/README.md](evaluation/answers/README.md).
 
-See [WORK_UPDATE.md](WORK_UPDATE.md) for exactly what was executed in this delivery.
+## What I learned
 
-## Deployment scope
+Building this project helped me connect several topics that I had previously used
+separately:
+
+- designing an incremental data pipeline instead of repeatedly rebuilding a dataset
+- validating data before loading it into PostgreSQL
+- comparing lexical and semantic retrieval with reproducible metrics
+- working with vector embeddings and pgvector
+- handling partial pipeline failures and retrying only the affected work
+- exposing data and retrieval functionality through FastAPI
+- documenting evaluation limits instead of relying only on headline metrics
+
+## Local demo and deployment notes
 
 The native Mac workflow is the primary local demo. An opt-in non-root API image
 and Compose overlay are included; see [deployment assessment](docs/DEPLOYMENT.md).
 The overlay uses evidence mode because container loopback cannot reach the Mac's
 Ollama daemon. It reuses the same PostgreSQL Compose project and volume.
 
-This is a portfolio-ready local application, **not a verified public production
-service**. It has no public authentication or request rate limits. Do not expose
-it publicly without access control, TLS, resource limits, backups and deployment
-validation. Historical evaluation artifacts are retained; live data, secrets and
-audit logs stay out of Git. No hosted service has been deployed.
+This project is designed primarily as a local portfolio demo, **not as a public
+production service**. It has no public authentication or request rate limits. Do not
+expose it publicly without access control, TLS, resource limits, backups and
+deployment validation. Historical evaluation artifacts are retained; live data,
+secrets and audit logs stay out of Git. No hosted service has been deployed.

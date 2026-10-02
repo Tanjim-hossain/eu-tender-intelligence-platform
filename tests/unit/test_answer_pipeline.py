@@ -56,7 +56,7 @@ def test_evidence_mode_and_source_mapping(record):
     assert result.citations == ("T1",)
     assert result.evidence[0].citation_id == "T1"
     assert "Estimated value: Not stated" in result.text
-    assert "no AI-generated answer" in result.text
+    assert "no generated answer" in result.text
     search.search.assert_called_once_with("cloud services", limit=5, retrieval_depth=20)
     repository.fetch.assert_called_once_with(["123-2026"])
 

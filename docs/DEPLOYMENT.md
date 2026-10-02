@@ -11,8 +11,7 @@ If a public interactive demo is later required, the simplest architecture to
 assess is one small Linux host running the API and PostgreSQL/pgvector with
 persistent storage, protected by a TLS reverse proxy and authentication/rate
 limits. Start with evidence mode. Local Qwen adds memory/compute requirements
-and needs measured capacity before sizing a machine. No provider, paid plan or
-cloud deployment is selected or provisioned by this delivery.
+and needs measured capacity before sizing a machine. No paid provider or cloud deployment is required for the current local setup.
 
 ## Optional local API container
 
@@ -45,15 +44,15 @@ check grace period. Download/cache before an offline demo. A failed health check
 does not by itself restart a running Docker container. Inspect startup logs.
 
 The current Linux dependency lock includes large PyTorch/CUDA wheels even when
-inference uses CPU; budget several GB for download/image storage. This delivery
-preserves the tested dependency resolution. A CPU-specific lock/image is a future
+inference uses CPU; budget several GB for download/image storage. The project currently preserves the tested dependency resolution. A CPU-specific lock/image is a future
 optimization requiring separate cross-platform verification. Python base-image
 tags and model names are not immutable digests/revisions, so this is dependency-
 locked reproducibility, not a bit-for-bit hermetic build.
 
-Docker is unavailable in the build workspace. Image and Compose runtime behavior
-must be validated on the Mac or by the provided CI job. The isolated wheel/asset
-check is executed here and is not presented as a Docker build test.
+The API image has been built successfully both locally and through GitHub Actions.
+CI also verifies that the packaged application can import and serve its static
+assets without requiring a database or language model at test time. Full live
+database and Ollama behavior should still be verified locally before a demo.
 
 ## Before public hosting
 
@@ -69,24 +68,20 @@ check is executed here and is not presented as a Docker build test.
   in runtime secrets, never in the image or repository.
 - Verify image build/start, real search/ask, backup recovery, and protected ingress.
 
-## GitHub publication
 
-The handoff has no configured Git remote. No remote was added, pushed or published
-here. The source ZIP has no original `.git` history; local delivery commits are
-exported as patches so they can be applied onto the real repository's history.
+## GitHub repository
 
-After applying and reviewing the changes, create/select the intended GitHub
-repository, add its exact URL as `origin`, and push your reviewed branch. Open a
-PR to `main`. CI runs Ruff, mypy, pytest, offline answer contracts, distribution
-packaging and an isolated API image import. Confirm the hosted run is green before
-claiming verified GitHub CI or tagging a release.
+The project is published as a public GitHub repository and uses GitHub Actions for
+continuous integration.
 
-Suggested repository description:
-“European procurement intelligence: incremental TED ingestion, PostgreSQL/pgvector,
-dbt analytics, evaluated hybrid search and evidence-grounded local AI.”
+The CI workflow checks code quality, typing, tests, answer-contract behavior,
+Python packaging and the API Docker image on pushes and pull requests.
 
-No software license has been selected in the handoff. Choose a license deliberately
-before advertising reuse rights. Public visibility alone does not grant them.
+Before creating a release, I would re-run the local database and retrieval smoke
+tests together with the hosted CI workflow.
+
+No software license is currently declared. A license should be selected explicitly
+before granting reuse rights to the code.
 
 Implementation references: [uv Docker integration](https://docs.astral.sh/uv/guides/integration/docker/),
 [GitHub checkout](https://github.com/actions/checkout),

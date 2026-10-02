@@ -19,10 +19,8 @@ time uses the Mac's local time. The three-day overlap helps catch recent updates
 but cannot guarantee capture of corrections to much older notices. Backfill wider
 windows explicitly when needed. Do not run concurrent manual and scheduled jobs.
 
-The handoff reports an installed `com.tanjim.tendergraph.refresh` launchd job,
-background execution exit 0, 5,819 tenders and 5,819 embeddings, with no missing or
-orphan vectors. Those are **handoff observations**, not live measurements made by
-this delivery. Existing jobs need no reinstall after source updates at the same path.
+A macOS launchd example is included for optional daily refresh scheduling.
+If the job is installed locally, its current state can be inspected with:
 
 ```bash
 launchctl print "gui/$(id -u)/com.tanjim.tendergraph.refresh"
@@ -30,8 +28,8 @@ launchctl print "gui/$(id -u)/com.tanjim.tendergraph.refresh"
 
 For a new Mac, use the example in `infra/com.tanjim.tendergraph.refresh.plist.example`:
 replace both absolute-path placeholders, create the log directory, validate with
-`plutil -lint`, and install it only when you want to activate scheduling. The ZIP
-does not contain or modify a machine's LaunchAgents directory.
+`plutil -lint`, and install it only when you want to activate scheduling. The
+repository does not modify the local LaunchAgents directory automatically.
 
 ## Failure recovery
 
@@ -90,4 +88,4 @@ docker compose --env-file .env -f infra/compose.yml exec -T postgres \
 Check that backup succeeded before relying on it. Keep an off-machine copy and test
 restoration in a separate database before production use. To pause the database,
 use `docker compose --env-file .env -f infra/compose.yml stop postgres`. Preserve
-the named volume. Source ZIPs do not back up the database or installed model weights.
+the named volume. Repository files do not back up the database or installed model weights.

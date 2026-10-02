@@ -25,10 +25,11 @@ uv run --frozen python scripts/summarize_retrieval.py
   the committed table; it lowers macro MRR despite improving mean nDCG. Hardware,
   repetition and uncertainty are not captured sufficiently for a latency SLA.
 
-This delivery aggregates the existing TSVs; it does not rerun retrieval, relabel
-candidates or retune ranking. The older benchmark is not a measurement of the
-current 5,819-row handoff corpus. Live evaluation scripts can overwrite tracked
-metric files; use a separate checkout and the matching corpus for reproduction.
+The reported table is calculated from the committed historical evaluation files.
+It does not represent a new retrieval run or a held-out evaluation of the current
+database contents. For exact reproduction, use the committed query, judgment and
+metric files together. Live evaluation scripts can overwrite tracked metric files,
+so a separate checkout is recommended when reproducing historical results.
 
 ## RAG evaluation
 
@@ -39,27 +40,37 @@ specified. It is not an LLM quality or hallucination-rate measurement.
 `make evaluate-local` calls the configured local Ollama model on six questions
 and three synthetic fixed evidence records. It checks selection/format and some
 forbidden phrases. It bypasses retrieval and still requires manual factual review.
-The previous user-reported Qwen 6/6 result is historical; a raw live output report
-is not supplied in this handoff and was not reproduced here.
+Local Ollama evaluation is separate from the deterministic answer-contract replay.
+Because generated responses can vary by model version and runtime settings, local
+LLM results should be reviewed manually rather than treated as a fixed benchmark.
 
 Citation presence and exact ID matching cannot prove entailment, protect every
 claim from prompt injection, or determine procurement eligibility. The prompt
 and fixed insufficiency message reduce specific failure modes without eliminating
 these limitations. The character context budget is not a precise token budget.
 
-## Verification provenance
+## Verification
 
-| Evidence | Source | Interpretation |
-| --- | --- | --- |
-| 208 baseline tests; 14/14 contract replay | Re-executed from supplied source in this environment | Deterministic baseline |
-| Final quality and packaging checks | `WORK_UPDATE.md` and `docs/verification.txt` | Executed delivery checks |
-| 5,819 Silver and embedding rows; zero missing/orphans | Supplied `TenderGraph-WORK-HANDOFF.md` | Prior Mac observation; not independently queried here |
-| Scheduled launchd exit 0 and fresh status | Supplied handoff | Prior machine-level verification |
-| Desktop/mobile screenshots and browser smoke | Existing committed artifacts / prior delivery | Synthetic API fixtures, not current live data |
-| Docker build and hosted GitHub Actions | Pending | Workflow supplied; no success claim |
+The deterministic project checks are designed to run without TED access, a live
+PostgreSQL database, Ollama or an external API key.
 
-The unit suite injects database/client/encoder fixtures. It does not establish
-real PostgreSQL transaction semantics or concurrent refresh correctness. The new
-recovery regression exercises partial completion and repeat repair using simulated
-durable work. Recheck the read-only SQL in the operations runbook after applying
-the update on the Mac.
+The current GitHub Actions workflow has been successfully executed on the public
+repository. It verifies:
+
+- Ruff static checks
+- mypy across 85 source files
+- 215 pytest tests
+- 14/14 answer-contract replay cases
+- Python source and wheel packaging
+- packaged browser assets
+- API Docker image build
+- API import and static asset checks inside the image
+
+These checks provide evidence for code quality and deterministic application
+behavior, but they do not replace live database, retrieval or language-model
+evaluation.
+
+The unit suite uses fixtures for several database, client and encoder components.
+It therefore does not establish distributed concurrency behavior or guarantee
+real-world retrieval quality. Live pipeline and database checks are documented in
+`docs/OPERATIONS.md`.

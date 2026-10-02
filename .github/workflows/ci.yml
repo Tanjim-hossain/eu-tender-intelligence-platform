@@ -42,6 +42,9 @@ jobs:
           RAG_PROVIDER: evidence
         run: make check
 
+      - name: Check browser smoke test syntax
+        run: node --check tests/browser/ui_smoke.mjs
+
       - name: Verify distribution packaging
         run: make package
 

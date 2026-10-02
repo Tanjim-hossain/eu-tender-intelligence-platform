@@ -140,7 +140,7 @@ class TenderAnswerService:
         truncated = False
         if self._generator is None:
             text = (
-                "Retrieved tender evidence (no AI-generated answer). "
+                "Retrieved tender evidence (no generated answer). "
                 "These are search matches, not verified answers to the question.\n\n"
                 + build_evidence_context(evidence)
             )
