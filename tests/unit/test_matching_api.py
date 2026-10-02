@@ -27,7 +27,7 @@ def test_matches_endpoint_returns_personalized_results() -> None:
                 buyer_name="Example Buyer",
                 buyer_country="BEL",
                 procedure_type=None,
-                estimated_value=Decimal("250000"),
+                estimated_value=Decimal(250000),
                 estimated_value_currency="EUR",
                 earliest_deadline=datetime(
                     2026,
