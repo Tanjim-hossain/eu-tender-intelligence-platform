@@ -13,6 +13,7 @@ from tendergraph.documents.fetcher import (
 )
 from tendergraph.documents.models import (
     DocumentPackageIntelligence,
+    PackageCoverage,
     PackageRequirementSignal,
     PackageRisk,
     TenderDocumentPackage,
@@ -342,6 +343,7 @@ class DocumentService:
                 )
 
         total_chars = sum(len(item.text) for item in texts)
+        coverage: PackageCoverage
         if not texts:
             coverage = "none"
         elif unsupported or package.restricted_document_count:
