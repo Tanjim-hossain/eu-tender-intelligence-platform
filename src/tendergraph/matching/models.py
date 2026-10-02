@@ -7,6 +7,18 @@ from typing import Literal, Self
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
+def _clean_term_list(values: list[str]) -> list[str]:
+    cleaned: list[str] = []
+    seen: set[str] = set()
+    for value in values:
+        term = " ".join(value.split())
+        key = term.casefold()
+        if term and key not in seen:
+            cleaned.append(term)
+            seen.add(key)
+    return cleaned
+
+
 class CompanyProfile(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -22,26 +34,34 @@ class CompanyProfile(BaseModel):
     preferred_value_currency: str = Field(default="EUR", min_length=3, max_length=3)
     min_days_to_deadline: int = Field(default=7, ge=0, le=180)
 
-    @field_validator("company_name", "description")
+    @field_validator("company_name")
     @classmethod
-    def clean_optional_text(cls, value: str | None) -> str | None:
+    def clean_company_name(cls, value: str) -> str:
+        cleaned = " ".join(value.split())
+        if not cleaned:
+            raise ValueError("company_name must not be blank")
+        return cleaned
+
+    @field_validator("description")
+    @classmethod
+    def clean_description(cls, value: str | None) -> str | None:
         if value is None:
             return None
         cleaned = " ".join(value.split())
         return cleaned or None
 
-    @field_validator("services", "technologies", "industries", "keywords")
+    @field_validator("services")
     @classmethod
-    def clean_terms(cls, values: list[str]) -> list[str]:
-        cleaned: list[str] = []
-        seen: set[str] = set()
-        for value in values:
-            term = " ".join(value.split())
-            key = term.casefold()
-            if term and key not in seen:
-                cleaned.append(term)
-                seen.add(key)
+    def clean_services(cls, values: list[str]) -> list[str]:
+        cleaned = _clean_term_list(values)
+        if not cleaned:
+            raise ValueError("services must include at least one non-blank term")
         return cleaned
+
+    @field_validator("technologies", "industries", "keywords")
+    @classmethod
+    def clean_optional_terms(cls, values: list[str]) -> list[str]:
+        return _clean_term_list(values)
 
     @field_validator("target_countries")
     @classmethod
@@ -51,7 +71,9 @@ class CompanyProfile(BaseModel):
         for value in values:
             country = value.strip().upper()
             if len(country) != 3:
-                raise ValueError("target_countries must use three-letter country codes")
+                raise ValueError(
+                    "target_countries must use three-letter country codes"
+                )
             if country not in seen:
                 cleaned.append(country)
                 seen.add(country)
@@ -62,7 +84,9 @@ class CompanyProfile(BaseModel):
     def clean_currency(cls, value: str) -> str:
         cleaned = value.strip().upper()
         if len(cleaned) != 3:
-            raise ValueError("preferred_value_currency must use a three-letter code")
+            raise ValueError(
+                "preferred_value_currency must use a three-letter code"
+            )
         return cleaned
 
     @model_validator(mode="after")
@@ -72,7 +96,9 @@ class CompanyProfile(BaseModel):
             and self.preferred_max_value is not None
             and self.preferred_min_value > self.preferred_max_value
         ):
-            raise ValueError("preferred_min_value must not exceed preferred_max_value")
+            raise ValueError(
+                "preferred_min_value must not exceed preferred_max_value"
+            )
         return self
 
 
