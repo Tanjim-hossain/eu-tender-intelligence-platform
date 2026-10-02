@@ -29,12 +29,27 @@ def _repository(request: Request) -> ProductRepository:
     if existing is not None:
         return cast(ProductRepository, existing)
 
-    pool = cast(
-        ConnectionPool,
-        request.app.state.db_pool,
+    pool = getattr(
+        request.app.state,
+        "db_pool",
+        None,
     )
-    ensure_product_schema(pool)
-    repository = ProductRepository(pool)
+    if pool is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Application not initialized",
+        )
+
+    typed_pool = cast(ConnectionPool, pool)
+    try:
+        ensure_product_schema(typed_pool)
+    except (OperationalError, PoolTimeout) as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="Database unavailable",
+        ) from exc
+
+    repository = ProductRepository(typed_pool)
     request.app.state.product_repository = repository
     return repository
 
