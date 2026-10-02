@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from typing import cast
+from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Request, Response
 from psycopg import OperationalError
@@ -73,7 +74,7 @@ def _set_session_cookie(
 def _create_session(
     *,
     repository: AuthRepository,
-    account_id,
+    account_id: UUID,
 ) -> tuple[str, datetime]:
     token = create_session_token()
     expires_at = datetime.now(UTC) + SESSION_TTL
