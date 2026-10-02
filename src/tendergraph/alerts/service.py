@@ -9,6 +9,7 @@ from tendergraph.alerts.models import (
     AlertRefreshResult,
 )
 from tendergraph.alerts.repository import AlertRepository
+from tendergraph.matching.models import CompanyProfile
 from tendergraph.matching.service import CompanyMatchingService
 from tendergraph.product.models import ProductState
 from tendergraph.product.repository import ProductRepository
@@ -38,17 +39,20 @@ class AlertService:
             return value.replace(tzinfo=UTC)
         return value.astimezone(UTC)
 
-    def _state_with_profile(self, account_id: UUID) -> ProductState:
+    def _state_with_profile(
+        self,
+        account_id: UUID,
+    ) -> tuple[ProductState, CompanyProfile]:
         state = self._product_repository.get_state(account_id)
         if state is None or state.profile is None:
             raise MissingCompanyProfileError(
                 "A company profile is required before personalized alerts can run"
             )
-        return state
+        return state, state.profile
 
     def get_digest(self, account_id: UUID) -> AlertDigest:
         now = self._normalize_now(self._now_provider())
-        state = self._state_with_profile(account_id)
+        state, profile = self._state_with_profile(account_id)
         preferences = self._alert_repository.get_preferences(account_id)
         items = self._alert_repository.list_events(
             account_id,
@@ -61,7 +65,7 @@ class AlertService:
         )
         return AlertDigest(
             account_id=account_id,
-            profile_name=state.profile.company_name,
+            profile_name=profile.company_name,
             generated_at=now,
             last_refreshed_at=preferences.last_refreshed_at,
             unread_count=unread_count,
@@ -71,7 +75,7 @@ class AlertService:
 
     def refresh(self, account_id: UUID) -> AlertRefreshResult:
         now = self._normalize_now(self._now_provider())
-        state = self._state_with_profile(account_id)
+        state, profile = self._state_with_profile(account_id)
         preferences = self._alert_repository.get_preferences(account_id)
 
         if not preferences.enabled:
@@ -83,7 +87,7 @@ class AlertService:
             )
 
         result = self._matching_service.match(
-            state.profile,
+            profile,
             limit=50,
             retrieval_depth=100,
         )
