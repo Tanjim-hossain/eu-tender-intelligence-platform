@@ -122,7 +122,10 @@ class DocumentService:
             pending = [
                 item
                 for item in existing.documents
-                if not item.restricted and item.status == "discovered"
+                if (
+                    not item.restricted
+                    and item.status in {"discovered", "failed"}
+                )
             ]
             if not fetch_documents or not pending:
                 return existing
@@ -143,9 +146,16 @@ class DocumentService:
             if current is None:
                 raise RuntimeError("Document package disappeared after discovery")
             for document in current.documents:
-                if document.restricted or document.status not in {"discovered", "failed"}:
+                if (
+                    document.restricted
+                    or document.status not in {"discovered", "failed"}
+                ):
                     continue
-                self._fetch_document(publication_number, document.document_id, document.source_url)
+                self._fetch_document(
+                    publication_number,
+                    document.document_id,
+                    document.source_url,
+                )
             self._update_package_status(publication_number)
 
         package = self._repository.get_package(publication_number)
@@ -153,9 +163,17 @@ class DocumentService:
             raise RuntimeError("Document package unavailable after ingestion")
         return package
 
-    def _fetch_document(self, publication_number: str, document_id: str, source_url: str) -> None:
+    def _fetch_document(
+        self,
+        publication_number: str,
+        document_id: str,
+        source_url: str,
+    ) -> None:
         try:
-            result = self._fetcher.fetch(source_url, max_bytes=DOCUMENT_MAX_BYTES)
+            result = self._fetcher.fetch(
+                source_url,
+                max_bytes=DOCUMENT_MAX_BYTES,
+            )
             extraction = extract_document_text(
                 result.content,
                 content_type=result.content_type,
@@ -164,11 +182,22 @@ class DocumentService:
             folder = self._cache_root / _safe_segment(publication_number)
             folder.mkdir(parents=True, exist_ok=True)
             filename = sha256(source_url.encode("utf-8")).hexdigest()[:20]
-            path = folder / f"{filename}{_cache_suffix(result.content_type, result.final_url)}"
+            path = folder / (
+                f"{filename}"
+                f"{_cache_suffix(result.content_type, result.final_url)}"
+            )
             path.write_bytes(result.content)
 
             text = extraction.text or None
-            status = "extracted" if text else ("unsupported" if not extraction.supported else "fetched")
+            status = (
+                "extracted"
+                if text
+                else (
+                    "unsupported"
+                    if not extraction.supported
+                    else "fetched"
+                )
+            )
             self._repository.record_fetch(
                 publication_number,
                 document_id,
@@ -184,7 +213,11 @@ class DocumentService:
             )
         except DocumentFetchError as exc:
             message = str(exc)
-            status = "access_denied" if "access denied" in message.casefold() else "failed"
+            status = (
+                "access_denied"
+                if "access denied" in message.casefold()
+                else "failed"
+            )
             self._repository.record_fetch(
                 publication_number,
                 document_id,
@@ -203,15 +236,24 @@ class DocumentService:
         package = self._repository.get_package(publication_number)
         if package is None:
             return
-        if package.documents and all(item.restricted for item in package.documents):
+        if package.documents and all(
+            item.restricted
+            for item in package.documents
+        ):
             status = "restricted_only"
-        elif any(item.status in {"failed", "access_denied", "unsupported"} for item in package.documents):
+        elif any(
+            item.status in {"failed", "access_denied", "unsupported"}
+            for item in package.documents
+        ):
             status = "partial"
         else:
             status = "ingested"
         self._repository.set_package_status(publication_number, status)
 
-    def intelligence(self, publication_number: str) -> DocumentPackageIntelligence:
+    def intelligence(
+        self,
+        publication_number: str,
+    ) -> DocumentPackageIntelligence:
         package = self.package(publication_number)
         texts = self._repository.extracted_texts(publication_number)
         requirements: list[PackageRequirementSignal] = []
@@ -222,14 +264,26 @@ class DocumentService:
                 if match is None:
                     continue
                 start, end = match
-                explicit = _is_explicit_requirement(document.text, start, end)
+                explicit = _is_explicit_requirement(
+                    document.text,
+                    start,
+                    end,
+                )
                 requirements.append(
                     PackageRequirementSignal(
                         key=rule.key,
                         category=rule.category,
                         label=rule.label,
-                        evidence_strength="explicit" if explicit else "mentioned",
-                        evidence=_snippet(document.text, start, end),
+                        evidence_strength=(
+                            "explicit"
+                            if explicit
+                            else "mentioned"
+                        ),
+                        evidence=_snippet(
+                            document.text,
+                            start,
+                            end,
+                        ),
                         document_id=document.document_id,
                         source_url=document.source_url,
                         hard_gate=rule.hard_gate and explicit,
@@ -244,8 +298,9 @@ class DocumentService:
                     key="restricted_documents",
                     severity="medium",
                     message=(
-                        f"{package.restricted_document_count} procurement document(s) "
-                        "have restricted or controlled access and were not fetched."
+                        f"{package.restricted_document_count} "
+                        "procurement document(s) have restricted or "
+                        "controlled access and were not fetched."
                     ),
                 )
             )
@@ -258,7 +313,10 @@ class DocumentService:
                 PackageRisk(
                     key="unread_documents",
                     severity="medium",
-                    message=f"{unsupported} document(s) could not be converted into reviewable text.",
+                    message=(
+                        f"{unsupported} document(s) could not be "
+                        "converted into reviewable text."
+                    ),
                 )
             )
         for item in requirements:
@@ -266,8 +324,15 @@ class DocumentService:
                 risks.append(
                     PackageRisk(
                         key=f"hard_gate_{item.key}",
-                        severity="high" if item.category == "security" else "medium",
-                        message=f"Explicit potential hard gate detected in procurement document: {item.label}.",
+                        severity=(
+                            "high"
+                            if item.category == "security"
+                            else "medium"
+                        ),
+                        message=(
+                            "Explicit potential hard gate detected in "
+                            f"procurement document: {item.label}."
+                        ),
                         document_id=item.document_id,
                     )
                 )
@@ -283,16 +348,30 @@ class DocumentService:
             coverage = "partial"
 
         actions = [
-            "Verify extracted requirements against the original buyer documents before a bid/no-bid decision."
+            "Verify extracted requirements against the original buyer "
+            "documents before a bid/no-bid decision."
         ]
         if package.package_status == "not_ingested":
-            actions.insert(0, "Ingest the procurement-document package before relying on package intelligence.")
+            actions.insert(
+                0,
+                "Ingest the procurement-document package before relying "
+                "on package intelligence.",
+            )
         if package.restricted_document_count:
-            actions.append("Open restricted-access document links manually and complete any buyer-required access process.")
+            actions.append(
+                "Open restricted-access document links manually and complete "
+                "any buyer-required access process."
+            )
         if unsupported:
-            actions.append("Review unread or unsupported documents manually; they can contain mandatory criteria.")
+            actions.append(
+                "Review unread or unsupported documents manually; they can "
+                "contain mandatory criteria."
+            )
         if any(item.hard_gate for item in requirements):
-            actions.append("Confirm every explicit potential hard gate with the bid team and documentary evidence.")
+            actions.append(
+                "Confirm every explicit potential hard gate with the bid "
+                "team and documentary evidence."
+            )
 
         return DocumentPackageIntelligence(
             publication_number=publication_number,
