@@ -4,7 +4,7 @@
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Match your company profile to European procurement opportunities and inspect the evidence behind each tender.">
   <title>TenderGraph · European procurement intelligence</title>
-  <link rel="stylesheet" href="/assets/style.css"><script src="/assets/app.js" defer></script>
+  <link rel="stylesheet" href="/assets/style.css"><link rel="stylesheet" href="/assets/feedback.css"><script src="/assets/feedback.js" defer></script><script src="/assets/app.js" defer></script>
 </head>
 <body>
   <header class="topbar"><a class="brand" href="/" aria-label="TenderGraph home"><span class="brand-mark" aria-hidden="true">T<span>·</span></span>TenderGraph</a><span class="top-label">EUROPEAN PROCUREMENT INTELLIGENCE</span><a class="docs-link" href="/docs">API docs ↗</a></header>
@@ -14,6 +14,7 @@
       <nav class="workspace-nav" aria-label="TenderGraph workspaces">
         <button class="nav-item active" id="nav-matches" type="button" data-view="matches" aria-controls="match-workspace" aria-current="page"><span aria-hidden="true">◎</span> Company matches</button>
         <button class="nav-item" id="nav-explorer" type="button" data-view="explorer" aria-controls="explorer-workspace"><span aria-hidden="true">⌕</span> Tender explorer</button>
+        <button class="nav-item" id="nav-saved" type="button" data-view="saved" aria-controls="saved-workspace"><span aria-hidden="true">☆</span> Saved opportunities <span id="saved-nav-count" class="nav-count">0</span></button>
       </nav>
       <div class="guide"><p class="eyebrow">FROM PROFILE TO OPPORTUNITY</p><ol><li><strong>Describe your company</strong><span>Add services, technologies and target markets.</span></li><li><strong>Review fit signals</strong><span>See why each tender matches and where the risks are.</span></li><li><strong>Verify the notice</strong><span>Open the official TED source before making a bid decision.</span></li></ol></div>
       <div class="connection"><span class="status-dot" id="connection-dot"></span><div><strong id="connection-label">Checking connection</strong><small id="mode-label">Loading answer mode…</small></div></div>
@@ -23,6 +24,7 @@
       <nav class="mobile-nav" aria-label="TenderGraph workspaces">
         <button type="button" data-view="matches" aria-controls="match-workspace">Company matches</button>
         <button type="button" data-view="explorer" aria-controls="explorer-workspace">Tender explorer</button>
+        <button type="button" data-view="saved" aria-controls="saved-workspace">Saved <span id="mobile-saved-count">0</span></button>
       </nav>
       <div id="notice" role="alert" hidden></div>
 
@@ -53,10 +55,17 @@
           <section class="match-results-panel" aria-labelledby="match-results-heading">
             <div class="section-heading"><h2 id="match-results-heading">Recommended opportunities <span id="match-count" class="count">—</span></h2><span id="match-time" class="muted"></span></div>
             <p id="match-caption" class="section-caption">Fit combines semantic relevance with the preferences you provide above.</p>
+            <div class="feedback-summary" aria-live="polite"><span><strong id="saved-count">0</strong> saved</span><span><strong id="ignored-count">0</strong> not relevant</span><button id="reset-ignored" type="button">Reset ignored</button></div>
             <div id="match-results" aria-live="polite"><div class="empty-state match-empty"><span class="empty-icon" aria-hidden="true">◎</span><h3>Turn your company profile into a tender feed.</h3><p>Enter your capabilities and target market, then rank the loaded TED notices for fit.</p><div class="empty-tags"><span>Capability fit</span><span>Target market</span><span>Value & deadline</span></div></div></div>
           </section>
         </div>
         <div class="fit-disclaimer"><strong>What the score means</strong><span>A higher fit score means the notice aligns better with the profile and preferences you supplied. It does not predict whether you will win and does not establish legal or procurement eligibility.</span></div>
+      </section>
+
+      <section id="saved-workspace" class="workspace" aria-labelledby="saved-title" hidden>
+        <div class="intro"><p class="eyebrow">SAVED OPPORTUNITIES</p><h1 id="saved-title">Build your opportunity pipeline.</h1><p>Keep promising tenders in one place while you review requirements and decide whether to bid. Saved items stay in this browser during the local-first phase.</p></div>
+        <div class="saved-toolbar"><div><h2>Saved tenders <span id="saved-workspace-count" class="count">0</span></h2><p>Use Company Matches to add opportunities here.</p></div><button id="clear-saved" class="secondary danger-secondary" type="button">Clear all saved</button></div>
+        <div id="saved-results" class="saved-results" aria-live="polite"></div>
       </section>
 
       <section id="explorer-workspace" class="workspace" aria-labelledby="explorer-title" hidden>
