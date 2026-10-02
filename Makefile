@@ -1,4 +1,4 @@
-.PHONY: install check serve evaluate evaluate-local db-up db-health refresh scheduled-refresh
+.PHONY: install check serve evaluate evaluate-local db-up db-health refresh scheduled-refresh alerts-refresh
 
 COMPOSE := docker compose --env-file .env -f infra/compose.yml
 COUNTRIES ?= BEL NLD DEU ITA
@@ -37,6 +37,9 @@ refresh:
 
 scheduled-refresh:
 	bash scripts/run_scheduled_refresh.sh $(SCHEDULE_ARGS)
+
+alerts-refresh:
+	uv run --frozen --env-file .env python scripts/refresh_tender_alerts.py
 
 .PHONY: repair-embeddings package app-build app-up app-stop
 repair-embeddings:
