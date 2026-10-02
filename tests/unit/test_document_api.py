@@ -3,7 +3,10 @@ from unittest.mock import Mock
 from fastapi.testclient import TestClient
 
 from tendergraph.api.app import create_app
-from tendergraph.documents.models import DocumentPackageIntelligence, TenderDocumentPackage
+from tendergraph.documents.models import (
+    DocumentPackageIntelligence,
+    TenderDocumentPackage,
+)
 from tendergraph.documents.service import TenderNotFoundError
 
 
