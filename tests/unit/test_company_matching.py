@@ -92,8 +92,8 @@ def test_company_profile_rejects_inverted_value_range() -> None:
         CompanyProfile(
             company_name="Acme",
             services=["data engineering"],
-            preferred_min_value=Decimal("500000"),
-            preferred_max_value=Decimal("100000"),
+            preferred_min_value=Decimal(500000),
+            preferred_max_value=Decimal(100000),
         )
 
 
@@ -119,7 +119,7 @@ def test_matching_ranks_fit_and_explains_tradeoffs() -> None:
         publication_number="good",
         semantic_score=0.88,
         buyer_country="BEL",
-        estimated_value=Decimal("250000"),
+        estimated_value=Decimal(250000),
         currency="EUR",
         deadline=now + timedelta(days=20),
         rrf_score=0.03,
@@ -128,7 +128,7 @@ def test_matching_ranks_fit_and_explains_tradeoffs() -> None:
         publication_number="weaker",
         semantic_score=0.80,
         buyer_country="DEU",
-        estimated_value=Decimal("900000"),
+        estimated_value=Decimal(900000),
         currency="EUR",
         deadline=now + timedelta(days=2),
         rrf_score=0.04,
@@ -143,8 +143,8 @@ def test_matching_ranks_fit_and_explains_tradeoffs() -> None:
         services=["data engineering", "analytics"],
         technologies=["Python", "Azure"],
         target_countries=["BEL"],
-        preferred_min_value=Decimal("50000"),
-        preferred_max_value=Decimal("500000"),
+        preferred_min_value=Decimal(50000),
+        preferred_max_value=Decimal(500000),
         min_days_to_deadline=7,
     )
 
