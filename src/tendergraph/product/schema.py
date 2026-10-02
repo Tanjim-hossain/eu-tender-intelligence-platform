@@ -103,6 +103,47 @@ CREATE INDEX IF NOT EXISTS idx_product_opportunity_account_updated
 ON product.opportunity_states (account_id, updated_at DESC);
 """
 
+CREATE_ALERT_PREFERENCES_SQL = """
+CREATE TABLE IF NOT EXISTS product.alert_preferences (
+    account_id UUID PRIMARY KEY
+        REFERENCES product.accounts(id) ON DELETE CASCADE,
+    enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    min_match_score DOUBLE PRECISION NOT NULL DEFAULT 70
+        CHECK (min_match_score >= 0 AND min_match_score <= 100),
+    lookback_days INTEGER NOT NULL DEFAULT 14
+        CHECK (lookback_days >= 1 AND lookback_days <= 90),
+    max_items INTEGER NOT NULL DEFAULT 10
+        CHECK (max_items >= 1 AND max_items <= 50),
+    last_refreshed_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+"""
+
+CREATE_ALERT_EVENTS_SQL = """
+CREATE TABLE IF NOT EXISTS product.alert_events (
+    account_id UUID NOT NULL
+        REFERENCES product.accounts(id) ON DELETE CASCADE,
+    publication_number TEXT NOT NULL,
+    match_score DOUBLE PRECISION NOT NULL
+        CHECK (match_score >= 0 AND match_score <= 100),
+    match_payload JSONB NOT NULL,
+    detected_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    seen_at TIMESTAMPTZ,
+    PRIMARY KEY (account_id, publication_number)
+);
+"""
+
+CREATE_ALERT_EVENT_INDEX_SQL = """
+CREATE INDEX IF NOT EXISTS idx_product_alert_account_unread
+ON product.alert_events (
+    account_id,
+    seen_at,
+    match_score DESC,
+    detected_at DESC
+);
+"""
+
 SCHEMA_STATEMENTS = (
     CREATE_SCHEMA_SQL,
     CREATE_ACCOUNTS_SQL,
@@ -113,6 +154,9 @@ SCHEMA_STATEMENTS = (
     CREATE_PROFILES_SQL,
     CREATE_OPPORTUNITIES_SQL,
     CREATE_OPPORTUNITY_INDEX_SQL,
+    CREATE_ALERT_PREFERENCES_SQL,
+    CREATE_ALERT_EVENTS_SQL,
+    CREATE_ALERT_EVENT_INDEX_SQL,
 )
 
 
