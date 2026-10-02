@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from datetime import UTC, datetime
-from decimal import Decimal
 from typing import Protocol
 
 from tendergraph.matching.models import (
     CompanyMatchResult,
     CompanyProfile,
+    CountryStatus,
     DeadlineStatus,
     MatchSignals,
     TenderMatch,
@@ -168,7 +168,6 @@ class CompanyMatchingService:
             days_to_deadline=days_to_deadline,
         )
         why_matches, risks = self._explain(
-            profile,
             candidate,
             signals,
         )
@@ -224,7 +223,7 @@ class CompanyMatchingService:
     def _country_fit(
         profile: CompanyProfile,
         candidate: HybridSearchResult,
-    ) -> tuple[float, str]:
+    ) -> tuple[float, CountryStatus]:
         if not profile.target_countries:
             return 1.0, "not_configured"
         if candidate.buyer_country.upper() in profile.target_countries:
@@ -282,10 +281,8 @@ class CompanyMatchingService:
         fit = max(0.0, days_remaining / minimum_days)
         return fit, "soon", days_remaining
 
-    @classmethod
+    @staticmethod
     def _explain(
-        cls,
-        profile: CompanyProfile,
         candidate: HybridSearchResult,
         signals: MatchSignals,
     ) -> tuple[list[str], list[str]]:
@@ -350,12 +347,3 @@ class CompanyMatchingService:
             risks.append("Tender deadline is unavailable")
 
         return why_matches, risks
-
-
-def format_contract_value(
-    value: Decimal | None,
-    currency: str | None,
-) -> str | None:
-    if value is None or currency is None:
-        return None
-    return f"{currency.upper()} {value:,.0f}"
