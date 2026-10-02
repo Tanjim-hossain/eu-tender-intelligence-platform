@@ -52,7 +52,7 @@ class AlertService:
 
     def get_digest(self, account_id: UUID) -> AlertDigest:
         now = self._normalize_now(self._now_provider())
-        state, profile = self._state_with_profile(account_id)
+        _, profile = self._state_with_profile(account_id)
         preferences = self._alert_repository.get_preferences(account_id)
         items = self._alert_repository.list_events(
             account_id,
