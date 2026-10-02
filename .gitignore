@@ -52,6 +52,9 @@ data/search/
 # Local database backups
 data/backups/
 
+# Local procurement document cache
+data/documents/
+
 # Generated answer-evaluation reports
 evaluation/answers/reports/*.json
 
