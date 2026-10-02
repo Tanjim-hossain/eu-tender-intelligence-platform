@@ -11,7 +11,7 @@ from tendergraph.matching.models import CompanyProfile
 
 AccountType = Literal["local", "registered"]
 OpportunityDisposition = Literal["saved", "ignored"]
-PipelineStage = Literal["reviewing", "qualified", "bid_planned", "no_bid"]
+PipelineStage = Literal["reviewing", "qualified", "bid", "no_bid"]
 
 
 class ProductAccount(BaseModel):
