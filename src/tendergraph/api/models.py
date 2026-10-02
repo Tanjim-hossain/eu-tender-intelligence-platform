@@ -12,6 +12,7 @@ from pydantic import (
     model_validator,
 )
 
+from tendergraph.matching.models import CompanyProfile
 from tendergraph.rag.settings import AnswerMode
 
 
@@ -87,6 +88,22 @@ class SearchResponse(BaseModel):
     query: str
     count: int
     results: list[SearchResult]
+
+
+class CompanyMatchRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    profile: CompanyProfile
+    limit: int = Field(default=10, ge=1, le=50)
+    retrieval_depth: int = Field(default=50, ge=1, le=100)
+
+    @model_validator(mode="after")
+    def validate_retrieval_depth(self) -> Self:
+        if self.retrieval_depth < self.limit:
+            raise ValueError(
+                "retrieval_depth must be greater than or equal to limit"
+            )
+        return self
 
 
 class HealthResponse(BaseModel):
