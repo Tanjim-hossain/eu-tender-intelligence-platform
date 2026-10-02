@@ -46,6 +46,7 @@ jobs:
         run: |
           node --check tests/browser/ui_smoke.mjs
           node --check src/tendergraph/api/web/feedback.js
+          node --check src/tendergraph/api/web/persistence.js
 
       - name: Verify distribution packaging
         run: make package
@@ -68,4 +69,5 @@ jobs:
           assert c.get('/').status_code == 200;
           assert c.get('/assets/app.js').status_code == 200;
           assert c.get('/assets/feedback.js').status_code == 200;
+          assert c.get('/assets/persistence.js').status_code == 200;
           assert c.get('/assets/feedback.css').status_code == 200"
