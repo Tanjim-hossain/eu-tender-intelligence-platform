@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS product.opportunity_states (
             OR pipeline_stage IN (
                 'reviewing',
                 'qualified',
-                'bid_planned',
+                'bid',
                 'no_bid'
             )
         ),
