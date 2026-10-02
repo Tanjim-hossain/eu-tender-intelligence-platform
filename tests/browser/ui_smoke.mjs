@@ -23,12 +23,20 @@ try {
   const page = await browser.newPage({viewport: {width:1440,height:1000}, acceptDownloads:true});
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
-  const notice = {publication_number:'SYNTHETIC-001', buyer_country:'BE', buyer_name:'Example Hospital — synthetic fixture', title:'Hospital information system — synthetic test notice', estimated_value:null, estimated_value_currency:null, earliest_deadline:null, publication_date:'2026-09-01', source_html_url:'https://ted.europa.eu/en/notice/-/detail/1-2026'};
+  const notice = {publication_number:'SYNTHETIC-001', buyer_country:'BEL', buyer_name:'Example Hospital — synthetic fixture', title:'Hospital information system — synthetic test notice', estimated_value:null, estimated_value_currency:null, earliest_deadline:null, publication_date:'2026-09-01', source_html_url:'https://ted.europa.eu/en/notice/-/detail/1-2026'};
+  const match = {...notice, estimated_value:'250000', estimated_value_currency:'EUR', earliest_deadline:'2026-10-25T12:00:00Z', match_score:91.2, signals:{semantic_fit:0.88,country_fit:1,value_fit:1,deadline_fit:1,country_status:'matched',value_status:'within_range',deadline_status:'open',days_to_deadline:23}, why_matches:['Strong semantic fit with the company capabilities','Buyer country BEL is a target market'], risks:['Verify tender-specific eligibility requirements'], rrf_score:0.03, lexical_rank:2, semantic_rank:1, semantic_score:0.88};
   let failSearch = false;
   let insufficient = false;
   let mode = 'ollama';
   await page.route('**/health', route => route.fulfill({json:{status:'ok'}}));
   await page.route('**/config', route => route.fulfill({json:{answer_mode:mode, generation_model:mode==='ollama'?'Synthetic local model':null, reranking:false}}));
+  await page.route('**/matches', route => {
+    const request = route.request().postDataJSON();
+    assert.equal(request.profile.company_name, 'Example Data Studio');
+    assert.deepEqual(request.profile.target_countries, ['BEL','NLD','DEU','ITA']);
+    assert.equal(request.profile.preferred_min_value, 50000);
+    return route.fulfill({json:{profile_name:request.profile.company_name, query:'Data and AI consultancy Data engineering Python Azure', count:1, matches:[match]}});
+  });
   await page.route('**/search', route => {
     const request = route.request().postDataJSON();
     assert.equal(request.query, 'hospital information system');
@@ -40,6 +48,19 @@ try {
   });
   await page.goto(origin);
   await page.waitForFunction(() => document.getElementById('mode-pill').textContent==='Local AI');
+
+  // Product flow: build a local company profile and receive explainable matches.
+  assert.equal(await page.locator('#match-workspace').isVisible(), true);
+  await page.locator('#example-profile').click();
+  await page.locator('#match-button').click();
+  await page.locator('.match-card').waitFor();
+  assert.match(await page.locator('.fit-score').innerText(), /91%/);
+  assert.match(await page.locator('.signal-grid').innerText(), /Why it matches/);
+  assert.match(await page.locator('.signal-grid').innerText(), /Review before bidding/);
+  assert.equal(await page.evaluate(() => Boolean(localStorage.getItem('tendergraph.companyProfile.v1'))), true);
+
+  // Existing explorer and evidence workflow remains available.
+  await page.locator('#nav-explorer').click();
   await page.getByRole('button', {name:'Hospital technology',exact:true}).click();
   await page.locator('#search-button').click();
   await page.locator('.tender-card').waitFor();
@@ -77,8 +98,9 @@ try {
   mode = 'evidence';
   await page.reload();
   await page.waitForFunction(() => document.getElementById('ask-button').textContent==='Show evidence →');
+  assert.equal(await page.locator('#explorer-workspace').isVisible(), true);
   assert.deepEqual(errors, []);
-  console.log('PASS: search, citations, JSON download, abstention, untrusted text/URL, 503, preserved inputs, evidence mode, mobile overflow. Synthetic API fixtures; no database or model called.');
+  console.log('PASS: company profile matching, local profile persistence, fit explanations, search, citations, JSON download, abstention, untrusted text/URL, 503, preserved inputs, evidence mode, mobile overflow. Synthetic API fixtures; no database or model called.');
 } finally {
   await browser?.close();
   server.kill('SIGTERM');

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Search European procurement notices and review the evidence behind every answer.">
+  <meta name="description" content="Match your company profile to European procurement opportunities and inspect the evidence behind each tender.">
   <title>TenderGraph · European procurement intelligence</title>
   <link rel="stylesheet" href="/assets/style.css"><script src="/assets/app.js" defer></script>
 </head>
@@ -10,20 +10,64 @@
   <header class="topbar"><a class="brand" href="/" aria-label="TenderGraph home"><span class="brand-mark" aria-hidden="true">T<span>·</span></span>TenderGraph</a><span class="top-label">EUROPEAN PROCUREMENT INTELLIGENCE</span><a class="docs-link" href="/docs">API docs ↗</a></header>
   <div class="layout">
     <aside class="sidebar">
-      <p class="eyebrow">YOUR WORKSPACE</p><div class="nav-active"><span aria-hidden="true">⌕</span> Tender explorer</div>
-      <div class="guide"><p class="eyebrow">FROM QUESTION TO EVIDENCE</p><ol><li><strong>Find opportunities</strong><span>Search by service, technology or project.</span></li><li><strong>Review the notices</strong><span>Compare buyers, values and deadlines.</span></li><li><strong>Ask a focused question</strong><span>Follow citations back to the source.</span></li></ol></div>
+      <p class="eyebrow">YOUR WORKSPACE</p>
+      <nav class="workspace-nav" aria-label="TenderGraph workspaces">
+        <button class="nav-item active" id="nav-matches" type="button" data-view="matches" aria-controls="match-workspace" aria-current="page"><span aria-hidden="true">◎</span> Company matches</button>
+        <button class="nav-item" id="nav-explorer" type="button" data-view="explorer" aria-controls="explorer-workspace"><span aria-hidden="true">⌕</span> Tender explorer</button>
+      </nav>
+      <div class="guide"><p class="eyebrow">FROM PROFILE TO OPPORTUNITY</p><ol><li><strong>Describe your company</strong><span>Add services, technologies and target markets.</span></li><li><strong>Review fit signals</strong><span>See why each tender matches and where the risks are.</span></li><li><strong>Verify the notice</strong><span>Open the official TED source before making a bid decision.</span></li></ol></div>
       <div class="connection"><span class="status-dot" id="connection-dot"></span><div><strong id="connection-label">Checking connection</strong><small id="mode-label">Loading answer mode…</small></div></div>
-      <p class="sidebar-note">Source: Tenders Electronic Daily.<br>Results reflect the loaded dataset.</p>
+      <p class="sidebar-note">Source: Tenders Electronic Daily.<br>Fit scores support triage; they are not win probabilities or eligibility decisions.</p>
     </aside>
     <main>
-      <div class="intro"><p class="eyebrow">TENDER EXPLORER</p><h1>Opportunity, backed by evidence.</h1><p>Find European tenders. Ask better questions. Go straight to the source.</p></div>
-      <section class="search-panel" aria-label="Search tenders"><form id="search-form"><label for="query">What are you looking for?</label><div class="search-row"><input id="query" type="search" maxlength="500" required placeholder="Try hospital information systems" autocomplete="off"><button id="search-button" type="submit">Search tenders ↗</button></div><div class="search-options"><div class="examples"><span>Explore</span><button type="button" data-query="hospital information system">Hospital technology</button><button type="button" data-query="cloud data platform">Cloud platforms</button><button type="button" data-query="cybersecurity services">Cybersecurity</button></div><label class="limit-label" for="limit">Results <select id="limit"><option>5</option><option selected>10</option><option>20</option></select></label></div></form></section>
+      <nav class="mobile-nav" aria-label="TenderGraph workspaces">
+        <button type="button" data-view="matches" aria-controls="match-workspace">Company matches</button>
+        <button type="button" data-view="explorer" aria-controls="explorer-workspace">Tender explorer</button>
+      </nav>
       <div id="notice" role="alert" hidden></div>
-      <div class="content-grid">
-        <section class="results-panel" aria-labelledby="results-heading"><div class="section-heading"><h2 id="results-heading">Search results <span id="result-count" class="count">—</span></h2><span id="search-time" class="muted"></span></div><p id="results-caption" class="section-caption">Ranked by lexical and semantic similarity.</p><div id="results" aria-live="polite"><div class="empty-state"><span class="empty-icon" aria-hidden="true">⌕</span><h3>Your next opportunity starts here.</h3><p>Enter a topic above to explore notices from the loaded TED dataset.</p><div class="empty-tags"><span>Buyers</span><span>Deadlines</span><span>Source documents</span></div></div></div></section>
-        <section class="answer-panel" aria-labelledby="answer-heading"><div class="answer-heading"><span class="eyebrow">EVIDENCE WORKSPACE</span><span class="mode-pill" id="mode-pill">Loading</span></div><h2 id="answer-heading">Go beyond the search.</h2><p id="answer-help">Ask about buyers, deadlines or differences between tenders.</p><form id="ask-form"><label for="question">Your question</label><textarea id="question" rows="4" maxlength="2000" required placeholder="Who is the buyer, and what deadline is stated?"></textarea><div class="ask-options"><label for="evidence-limit">Candidate notices <select id="evidence-limit"><option selected>3</option><option>5</option><option>10</option></select></label><button id="ask-button" type="submit">Ask with evidence →</button></div></form><p class="hint">Uses your search topic as a retrieval hint. The question determines which evidence is relevant.</p><div id="answer-output" aria-live="polite" hidden><div class="answer-meta"><strong id="answer-status"></strong><span id="answer-time"></span></div><p id="answer-text"></p><p id="truncation" class="hint" hidden>Some source text was shortened to fit the context window.</p><h3 id="sources-heading">Supporting sources</h3><div id="sources"></div><button type="button" id="download-answer" class="secondary">Download answer JSON ↓</button></div><div class="evidence-note"><span aria-hidden="true">◎</span><p>Verify decisions against the original notice. A citation links to evidence; it does not prove every generated claim.</p></div></section>
-      </div>
-      <footer>Built for deliberate decisions.<span>TenderGraph · Local workspace</span></footer>
+
+      <section id="match-workspace" class="workspace" aria-labelledby="match-title">
+        <div class="intro product-intro"><p class="eyebrow">PERSONALIZED OPPORTUNITY FEED</p><h1 id="match-title">Find tenders that fit your business.</h1><p>Describe what your company can deliver. TenderGraph ranks opportunities by capability, market, contract value and response window.</p></div>
+        <div class="match-layout">
+          <section class="profile-panel" aria-labelledby="profile-heading">
+            <div class="panel-heading"><div><p class="eyebrow">COMPANY PROFILE</p><h2 id="profile-heading">What should TenderGraph look for?</h2></div><button id="example-profile" class="text-button" type="button">Load example</button></div>
+            <form id="profile-form">
+              <div class="profile-grid">
+                <label class="field field-wide" for="company-name">Company name <input id="company-name" maxlength="200" required placeholder="Acme Data"></label>
+                <label class="field field-wide" for="company-description">Short description <textarea id="company-description" rows="2" maxlength="2000" placeholder="Data and AI consultancy for public-sector organizations"></textarea></label>
+                <label class="field field-wide" for="company-services">Services <span class="field-help">Required · comma or line separated</span><textarea id="company-services" rows="3" required placeholder="Data engineering, analytics, machine learning"></textarea></label>
+                <label class="field" for="company-technologies">Technologies <input id="company-technologies" placeholder="Python, Azure, Power BI"></label>
+                <label class="field" for="company-industries">Industries <input id="company-industries" placeholder="Healthcare, public sector"></label>
+                <label class="field" for="company-keywords">Extra keywords <input id="company-keywords" placeholder="cloud platform, data lakehouse"></label>
+                <label class="field" for="target-countries">Target countries <span class="field-help">3-letter codes</span><input id="target-countries" placeholder="BEL, NLD, DEU, ITA"></label>
+                <label class="field" for="preferred-min-value">Minimum value <input id="preferred-min-value" type="number" min="0" step="1000" inputmode="decimal" placeholder="50000"></label>
+                <label class="field" for="preferred-max-value">Maximum value <input id="preferred-max-value" type="number" min="0" step="1000" inputmode="decimal" placeholder="1000000"></label>
+                <label class="field" for="preferred-currency">Currency <select id="preferred-currency"><option selected>EUR</option><option>GBP</option><option>USD</option></select></label>
+                <label class="field" for="min-days">Minimum response window <select id="min-days"><option value="0">Any open deadline</option><option value="3">3 days</option><option value="7" selected>7 days</option><option value="14">14 days</option><option value="30">30 days</option></select></label>
+                <label class="field" for="match-limit">Matches <select id="match-limit"><option>5</option><option selected>10</option><option>20</option></select></label>
+              </div>
+              <div class="profile-actions"><p>Your profile is stored only in this browser during the local-first phase.</p><button id="match-button" type="submit">Find my matches →</button></div>
+            </form>
+          </section>
+
+          <section class="match-results-panel" aria-labelledby="match-results-heading">
+            <div class="section-heading"><h2 id="match-results-heading">Recommended opportunities <span id="match-count" class="count">—</span></h2><span id="match-time" class="muted"></span></div>
+            <p id="match-caption" class="section-caption">Fit combines semantic relevance with the preferences you provide above.</p>
+            <div id="match-results" aria-live="polite"><div class="empty-state match-empty"><span class="empty-icon" aria-hidden="true">◎</span><h3>Turn your company profile into a tender feed.</h3><p>Enter your capabilities and target market, then rank the loaded TED notices for fit.</p><div class="empty-tags"><span>Capability fit</span><span>Target market</span><span>Value & deadline</span></div></div></div>
+          </section>
+        </div>
+        <div class="fit-disclaimer"><strong>What the score means</strong><span>A higher fit score means the notice aligns better with the profile and preferences you supplied. It does not predict whether you will win and does not establish legal or procurement eligibility.</span></div>
+      </section>
+
+      <section id="explorer-workspace" class="workspace" aria-labelledby="explorer-title" hidden>
+        <div class="intro"><p class="eyebrow">TENDER EXPLORER</p><h1 id="explorer-title">Opportunity, backed by evidence.</h1><p>Find European tenders. Ask better questions. Go straight to the source.</p></div>
+        <section class="search-panel" aria-label="Search tenders"><form id="search-form"><label for="query">What are you looking for?</label><div class="search-row"><input id="query" type="search" maxlength="500" required placeholder="Try hospital information systems" autocomplete="off"><button id="search-button" type="submit">Search tenders ↗</button></div><div class="search-options"><div class="examples"><span>Explore</span><button type="button" data-query="hospital information system">Hospital technology</button><button type="button" data-query="cloud data platform">Cloud platforms</button><button type="button" data-query="cybersecurity services">Cybersecurity</button></div><label class="limit-label" for="limit">Results <select id="limit"><option>5</option><option selected>10</option><option>20</option></select></label></div></form></section>
+        <div class="content-grid">
+          <section class="results-panel" aria-labelledby="results-heading"><div class="section-heading"><h2 id="results-heading">Search results <span id="result-count" class="count">—</span></h2><span id="search-time" class="muted"></span></div><p id="results-caption" class="section-caption">Ranked by lexical and semantic similarity.</p><div id="results" aria-live="polite"><div class="empty-state"><span class="empty-icon" aria-hidden="true">⌕</span><h3>Your next opportunity starts here.</h3><p>Enter a topic above to explore notices from the loaded TED dataset.</p><div class="empty-tags"><span>Buyers</span><span>Deadlines</span><span>Source documents</span></div></div></div></section>
+          <section class="answer-panel" aria-labelledby="answer-heading"><div class="answer-heading"><span class="eyebrow">EVIDENCE WORKSPACE</span><span class="mode-pill" id="mode-pill">Loading</span></div><h2 id="answer-heading">Go beyond the search.</h2><p id="answer-help">Ask about buyers, deadlines or differences between tenders.</p><form id="ask-form"><label for="question">Your question</label><textarea id="question" rows="4" maxlength="2000" required placeholder="Who is the buyer, and what deadline is stated?"></textarea><div class="ask-options"><label for="evidence-limit">Candidate notices <select id="evidence-limit"><option selected>3</option><option>5</option><option>10</option></select></label><button id="ask-button" type="submit">Ask with evidence →</button></div></form><p class="hint">Uses your search topic as a retrieval hint. The question determines which evidence is relevant.</p><div id="answer-output" aria-live="polite" hidden><div class="answer-meta"><strong id="answer-status"></strong><span id="answer-time"></span></div><p id="answer-text"></p><p id="truncation" class="hint" hidden>Some source text was shortened to fit the context window.</p><h3 id="sources-heading">Supporting sources</h3><div id="sources"></div><button type="button" id="download-answer" class="secondary">Download answer JSON ↓</button></div><div class="evidence-note"><span aria-hidden="true">◎</span><p>Verify decisions against the original notice. A citation links to evidence; it does not prove every generated claim.</p></div></section>
+        </div>
+      </section>
+      <footer>Built for deliberate decisions.<span>TenderGraph · Local-first product workspace</span></footer>
     </main>
   </div>
 </body>
