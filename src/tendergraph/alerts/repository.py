@@ -4,8 +4,8 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from psycopg.types.json import Jsonb
 from psycopg_pool import ConnectionPool
+from psycopg.types.json import Jsonb
 
 from tendergraph.alerts.models import (
     AlertPreferences,
