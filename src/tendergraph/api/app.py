@@ -35,6 +35,7 @@ from tendergraph.database.config import (
 from tendergraph.database.pool import (
     create_connection_pool,
 )
+from tendergraph.documents.router import router as documents_router
 from tendergraph.matching.models import CompanyMatchResult
 from tendergraph.matching.service import CompanyMatchingService
 from tendergraph.pipeline.status import (
@@ -115,6 +116,7 @@ def create_app(
 
     application.include_router(product_router)
     application.include_router(qualification_router)
+    application.include_router(documents_router)
 
     web_dir = Path(__file__).parent / "web"
     application.mount("/assets", StaticFiles(directory=web_dir), name="assets")
