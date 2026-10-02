@@ -49,12 +49,16 @@ jobs:
           node --check src/tendergraph/api/web/persistence.js
           node --check src/tendergraph/api/web/auth.js
           node --check src/tendergraph/api/web/qualification.js
+          node --check src/tendergraph/api/web/alerts.js
+
+      - name: Check scheduled refresh shell syntax
+        run: bash -n scripts/run_scheduled_refresh.sh
 
       - name: Verify distribution packaging
         run: make package
 
   persistence:
-    name: Product, auth, qualification, and document PostgreSQL round trips
+    name: Product, auth, alerts, qualification, and document PostgreSQL round trips
     runs-on: ubuntu-latest
     timeout-minutes: 15
     services:
@@ -100,6 +104,10 @@ jobs:
         env: *postgres-env
         run: uv run --frozen python scripts/smoke_auth.py
 
+      - name: Exercise personalized alerts against PostgreSQL
+        env: *postgres-env
+        run: uv run --frozen python scripts/smoke_alerts.py
+
       - name: Exercise qualification intelligence against PostgreSQL
         env: *postgres-env
         run: uv run --frozen python scripts/smoke_qualification.py
@@ -131,5 +139,7 @@ jobs:
           assert c.get('/assets/auth.js').status_code == 200;
           assert c.get('/assets/auth.css').status_code == 200;
           assert c.get('/assets/qualification.js').status_code == 200;
+          assert c.get('/assets/alerts.js').status_code == 200;
+          assert c.get('/assets/alerts.css').status_code == 200;
           assert c.get('/assets/feedback.css').status_code == 200;
           assert c.get('/assets/qualification.css').status_code == 200"

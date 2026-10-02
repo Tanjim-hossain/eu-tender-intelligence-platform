@@ -18,6 +18,7 @@ from sentence_transformers import (
     SentenceTransformer,
 )
 
+from tendergraph.alerts.router import router as alerts_router
 from tendergraph.api.models import (
     AnswerSource,
     AskRequest,
@@ -117,6 +118,7 @@ def create_app(
 
     application.include_router(auth_router)
     application.include_router(product_router)
+    application.include_router(alerts_router)
     application.include_router(qualification_router)
     application.include_router(documents_router)
 
