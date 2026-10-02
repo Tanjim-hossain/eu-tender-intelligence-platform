@@ -4,7 +4,7 @@
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Match your company profile to European procurement opportunities and inspect the evidence behind each tender.">
   <title>TenderGraph · European procurement intelligence</title>
-  <link rel="stylesheet" href="/assets/style.css"><link rel="stylesheet" href="/assets/feedback.css"><script src="/assets/feedback.js" defer></script><script src="/assets/app.js" defer></script>
+  <link rel="stylesheet" href="/assets/style.css"><link rel="stylesheet" href="/assets/feedback.css"><link rel="stylesheet" href="/assets/qualification.css"><script src="/assets/persistence.js" defer></script><script src="/assets/feedback.js" defer></script><script src="/assets/qualification.js" defer></script><script src="/assets/app.js" defer></script>
 </head>
 <body>
   <header class="topbar"><a class="brand" href="/" aria-label="TenderGraph home"><span class="brand-mark" aria-hidden="true">T<span>·</span></span>TenderGraph</a><span class="top-label">EUROPEAN PROCUREMENT INTELLIGENCE</span><a class="docs-link" href="/docs">API docs ↗</a></header>
@@ -16,9 +16,9 @@
         <button class="nav-item" id="nav-explorer" type="button" data-view="explorer" aria-controls="explorer-workspace"><span aria-hidden="true">⌕</span> Tender explorer</button>
         <button class="nav-item" id="nav-saved" type="button" data-view="saved" aria-controls="saved-workspace"><span aria-hidden="true">☆</span> Saved opportunities <span id="saved-nav-count" class="nav-count">0</span></button>
       </nav>
-      <div class="guide"><p class="eyebrow">FROM PROFILE TO OPPORTUNITY</p><ol><li><strong>Describe your company</strong><span>Add services, technologies and target markets.</span></li><li><strong>Review fit signals</strong><span>See why each tender matches and where the risks are.</span></li><li><strong>Verify the notice</strong><span>Open the official TED source before making a bid decision.</span></li></ol></div>
+      <div class="guide"><p class="eyebrow">FROM PROFILE TO OPPORTUNITY</p><ol><li><strong>Describe your company</strong><span>Add services, technologies and target markets.</span></li><li><strong>Review fit signals</strong><span>See why each tender matches and where the risks are.</span></li><li><strong>Verify the notice</strong><span>Review indexed requirements, then open the official TED source before making a bid decision.</span></li></ol></div>
       <div class="connection"><span class="status-dot" id="connection-dot"></span><div><strong id="connection-label">Checking connection</strong><small id="mode-label">Loading answer mode…</small></div></div>
-      <p class="sidebar-note">Source: Tenders Electronic Daily.<br>Fit scores support triage; they are not win probabilities or eligibility decisions.</p>
+      <p class="sidebar-note">Source: Tenders Electronic Daily.<br>Fit scores and qualification signals support triage; they are not win probabilities or legal eligibility decisions.</p>
     </aside>
     <main>
       <nav class="mobile-nav" aria-label="TenderGraph workspaces">
@@ -48,7 +48,7 @@
                 <label class="field" for="min-days">Minimum response window <select id="min-days"><option value="0">Any open deadline</option><option value="3">3 days</option><option value="7" selected>7 days</option><option value="14">14 days</option><option value="30">30 days</option></select></label>
                 <label class="field" for="match-limit">Matches <select id="match-limit"><option>5</option><option selected>10</option><option>20</option></select></label>
               </div>
-              <div class="profile-actions"><p>Your profile is stored only in this browser during the local-first phase.</p><button id="match-button" type="submit">Find my matches →</button></div>
+              <div class="profile-actions"><p>Your profile is persisted to local PostgreSQL, with browser storage kept as a resilient cache.</p><button id="match-button" type="submit">Find my matches →</button></div>
             </form>
           </section>
 
@@ -63,7 +63,7 @@
       </section>
 
       <section id="saved-workspace" class="workspace" aria-labelledby="saved-title" hidden>
-        <div class="intro"><p class="eyebrow">SAVED OPPORTUNITIES</p><h1 id="saved-title">Build your opportunity pipeline.</h1><p>Keep promising tenders in one place while you review requirements and decide whether to bid. Saved items stay in this browser during the local-first phase.</p></div>
+        <div class="intro"><p class="eyebrow">SAVED OPPORTUNITIES</p><h1 id="saved-title">Build your opportunity pipeline.</h1><p>Keep promising tenders in one place, review evidence-grounded requirement signals, and decide whether to investigate a bid. Saved state is persisted to local PostgreSQL with browser cache fallback.</p></div>
         <div class="saved-toolbar"><div><h2>Saved tenders <span id="saved-workspace-count" class="count">0</span></h2><p>Use Company Matches to add opportunities here.</p></div><button id="clear-saved" class="secondary danger-secondary" type="button">Clear all saved</button></div>
         <div id="saved-results" class="saved-results" aria-live="polite"></div>
       </section>
@@ -76,7 +76,7 @@
           <section class="answer-panel" aria-labelledby="answer-heading"><div class="answer-heading"><span class="eyebrow">EVIDENCE WORKSPACE</span><span class="mode-pill" id="mode-pill">Loading</span></div><h2 id="answer-heading">Go beyond the search.</h2><p id="answer-help">Ask about buyers, deadlines or differences between tenders.</p><form id="ask-form"><label for="question">Your question</label><textarea id="question" rows="4" maxlength="2000" required placeholder="Who is the buyer, and what deadline is stated?"></textarea><div class="ask-options"><label for="evidence-limit">Candidate notices <select id="evidence-limit"><option selected>3</option><option>5</option><option>10</option></select></label><button id="ask-button" type="submit">Ask with evidence →</button></div></form><p class="hint">Uses your search topic as a retrieval hint. The question determines which evidence is relevant.</p><div id="answer-output" aria-live="polite" hidden><div class="answer-meta"><strong id="answer-status"></strong><span id="answer-time"></span></div><p id="answer-text"></p><p id="truncation" class="hint" hidden>Some source text was shortened to fit the context window.</p><h3 id="sources-heading">Supporting sources</h3><div id="sources"></div><button type="button" id="download-answer" class="secondary">Download answer JSON ↓</button></div><div class="evidence-note"><span aria-hidden="true">◎</span><p>Verify decisions against the original notice. A citation links to evidence; it does not prove every generated claim.</p></div></section>
         </div>
       </section>
-      <footer>Built for deliberate decisions.<span>TenderGraph · Local-first product workspace</span></footer>
+      <footer>Built for deliberate decisions.<span>TenderGraph · Local-first durable product workspace</span></footer>
     </main>
   </div>
 </body>
