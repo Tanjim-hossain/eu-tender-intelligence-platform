@@ -20,15 +20,9 @@
       return fallback;
     }
   };
-  const rawSet = (key, value) => {
-    nativeSetItem.call(localStorage, key, value);
-  };
-  const rawRemove = (key) => {
-    nativeRemoveItem.call(localStorage, key);
-  };
-  const clearWorkspaceCache = () => {
-    [PROFILE_KEY, SAVED_KEY, IGNORED_KEY, DIRTY_KEY].forEach(rawRemove);
-  };
+  const rawSet = (key, value) => nativeSetItem.call(localStorage, key, value);
+  const rawRemove = (key) => nativeRemoveItem.call(localStorage, key);
+  const clearWorkspaceCache = () => [PROFILE_KEY, SAVED_KEY, IGNORED_KEY, DIRTY_KEY].forEach(rawRemove);
   const request = async (path, options = {}) => {
     const response = await fetch(path, {
       credentials: "same-origin",
@@ -100,13 +94,7 @@
     if (Array.isArray(ignored)) {
       ignored.forEach((publicationNumber) => {
         if (!desired.has(publicationNumber)) {
-          desired.set(publicationNumber, {
-            disposition:"ignored",
-            pipeline_stage:null,
-            note:"",
-            match_score:null,
-            snapshot:null
-          });
+          desired.set(publicationNumber, {disposition:"ignored",pipeline_stage:null,note:"",match_score:null,snapshot:null});
         }
       });
     }
@@ -118,26 +106,18 @@
     const state = await request(`/product/accounts/${id}/state`);
     const profile = parse(PROFILE_KEY, null);
     if (profile && typeof profile === "object") {
-      await request(`/product/accounts/${id}/profile`, {
-        method:"PUT",
-        body:JSON.stringify(profile)
-      });
+      await request(`/product/accounts/${id}/profile`, {method:"PUT",body:JSON.stringify(profile)});
     } else if (state.profile) {
       await request(`/product/accounts/${id}/profile`, {method:"DELETE"});
     }
     const desired = desiredOpportunityState();
     for (const [publicationNumber, value] of desired) {
-      await request(`/product/accounts/${id}/opportunities/${encodeURIComponent(publicationNumber)}`, {
-        method:"PUT",
-        body:JSON.stringify(value)
-      });
+      await request(`/product/accounts/${id}/opportunities/${encodeURIComponent(publicationNumber)}`, {method:"PUT",body:JSON.stringify(value)});
     }
     const serverNumbers = new Set((state.opportunities || []).map((item) => item.publication_number));
     for (const publicationNumber of serverNumbers) {
       if (!desired.has(publicationNumber)) {
-        await request(`/product/accounts/${id}/opportunities/${encodeURIComponent(publicationNumber)}`, {
-          method:"DELETE"
-        });
+        await request(`/product/accounts/${id}/opportunities/${encodeURIComponent(publicationNumber)}`, {method:"DELETE"});
       }
     }
     rawRemove(DIRTY_KEY);
@@ -146,9 +126,7 @@
     if (hydrating) return;
     rawSet(DIRTY_KEY, "1");
     clearTimeout(syncTimer);
-    syncTimer = setTimeout(() => {
-      syncNow().catch((error) => console.warn("TenderGraph persistence sync failed", error));
-    }, 250);
+    syncTimer = setTimeout(() => syncNow().catch((error) => console.warn("TenderGraph persistence sync failed", error)), 250);
   };
   const hydrate = (state) => {
     hydrating = true;
@@ -158,10 +136,7 @@
       const saved = {};
       const ignored = [];
       (state.opportunities || []).forEach((item) => {
-        if (item.disposition === "ignored") {
-          ignored.push(item.publication_number);
-          return;
-        }
+        if (item.disposition === "ignored") { ignored.push(item.publication_number); return; }
         if (!item.snapshot) return;
         saved[item.publication_number] = {
           publication_number:item.publication_number,
@@ -176,54 +151,27 @@
       rawSet(SAVED_KEY, JSON.stringify(saved));
       rawSet(IGNORED_KEY, JSON.stringify(ignored));
       rawRemove(DIRTY_KEY);
-    } finally {
-      hydrating = false;
-    }
+    } finally { hydrating = false; }
   };
   const bootstrap = async () => {
     const previousAccountId = accountId;
     const registered = await authenticatedAccount();
-    const switchedAccount = Boolean(
-      registered && previousAccountId && previousAccountId !== registered.id
-    );
-    if (registered) {
-      accountId = registered.id;
-      rawSet(ACCOUNT_KEY, accountId);
-    }
-
-    const hadLocalState = Boolean(
-      localStorage.getItem(PROFILE_KEY)
-      || localStorage.getItem(SAVED_KEY)
-      || localStorage.getItem(IGNORED_KEY)
-    );
+    const switchedAccount = Boolean(registered && previousAccountId && previousAccountId !== registered.id);
+    if (registered) { accountId = registered.id; rawSet(ACCOUNT_KEY, accountId); }
+    const hadLocalState = Boolean(localStorage.getItem(PROFILE_KEY) || localStorage.getItem(SAVED_KEY) || localStorage.getItem(IGNORED_KEY));
     const locallyDirty = !switchedAccount && localStorage.getItem(DIRTY_KEY) === "1";
     const id = await ensureAccount();
     const state = await request(`/product/accounts/${id}/state`);
-    const serverHasState = Boolean(
-      state.profile
-      || (state.opportunities || []).length
-    );
-    if (!switchedAccount && (locallyDirty || (hadLocalState && !serverHasState))) {
-      await syncNow();
-      return;
-    }
-    const before = [
-      localStorage.getItem(PROFILE_KEY),
-      localStorage.getItem(SAVED_KEY),
-      localStorage.getItem(IGNORED_KEY)
-    ].join("|");
+    const serverHasState = Boolean(state.profile || (state.opportunities || []).length);
+    if (!switchedAccount && (locallyDirty || (hadLocalState && !serverHasState))) { await syncNow(); return; }
+    const before = [localStorage.getItem(PROFILE_KEY),localStorage.getItem(SAVED_KEY),localStorage.getItem(IGNORED_KEY)].join("|");
     hydrate(state);
-    const after = [
-      localStorage.getItem(PROFILE_KEY),
-      localStorage.getItem(SAVED_KEY),
-      localStorage.getItem(IGNORED_KEY)
-    ].join("|");
+    const after = [localStorage.getItem(PROFILE_KEY),localStorage.getItem(SAVED_KEY),localStorage.getItem(IGNORED_KEY)].join("|");
     if (before !== after && !sessionStorage.getItem("tendergraph.persistenceReloaded")) {
       sessionStorage.setItem("tendergraph.persistenceReloaded", "1");
       location.reload();
     }
   };
-
   Storage.prototype.setItem = function(key, value) {
     nativeSetItem.call(this, key, value);
     if (this === localStorage && TRACKED_KEYS.has(key)) scheduleSync();
@@ -232,6 +180,6 @@
     nativeRemoveItem.call(this, key);
     if (this === localStorage && TRACKED_KEYS.has(key)) scheduleSync();
   };
-
   bootstrap().catch((error) => console.warn("TenderGraph persistence unavailable; using browser cache", error));
 })();
+import("/assets/auth.js").catch((error) => console.warn("TenderGraph account controls unavailable", error));
