@@ -10,6 +10,7 @@ from tendergraph.alerts.models import (
 )
 from tendergraph.alerts.repository import AlertRepository
 from tendergraph.matching.service import CompanyMatchingService
+from tendergraph.product.models import ProductState
 from tendergraph.product.repository import ProductRepository
 
 
@@ -37,7 +38,7 @@ class AlertService:
             return value.replace(tzinfo=UTC)
         return value.astimezone(UTC)
 
-    def _state_with_profile(self, account_id: UUID):
+    def _state_with_profile(self, account_id: UUID) -> ProductState:
         state = self._product_repository.get_state(account_id)
         if state is None or state.profile is None:
             raise MissingCompanyProfileError(
@@ -112,3 +113,11 @@ class AlertService:
             new_count=new_count,
             digest=self.get_digest(account_id),
         )
+
+    def mark_seen(self, account_id: UUID, publication_number: str) -> None:
+        now = self._normalize_now(self._now_provider())
+        self._alert_repository.mark_seen(account_id, publication_number, now)
+
+    def mark_all_seen(self, account_id: UUID) -> None:
+        now = self._normalize_now(self._now_provider())
+        self._alert_repository.mark_all_seen(account_id, now)
