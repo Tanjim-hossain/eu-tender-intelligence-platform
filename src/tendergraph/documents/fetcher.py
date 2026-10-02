@@ -53,7 +53,12 @@ def validate_public_http_url(url: str) -> None:
         raise UnsafeDocumentUrlError("Document URLs with embedded credentials are blocked")
 
     try:
-        addresses = socket.getaddrinfo(parsed.hostname, parsed.port or 443)
+        port = parsed.port or (443 if parsed.scheme == "https" else 80)
+    except ValueError as exc:
+        raise UnsafeDocumentUrlError("Document URL contains an invalid port") from exc
+
+    try:
+        addresses = socket.getaddrinfo(parsed.hostname, port)
     except socket.gaierror as exc:
         raise DocumentFetchError("Document hostname could not be resolved") from exc
 
