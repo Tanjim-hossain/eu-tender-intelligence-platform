@@ -4,8 +4,8 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from psycopg_pool import ConnectionPool
 from psycopg.types.json import Jsonb
+from psycopg_pool import ConnectionPool
 
 from tendergraph.alerts.models import (
     AlertPreferences,
@@ -13,7 +13,6 @@ from tendergraph.alerts.models import (
     TenderAlertItem,
 )
 from tendergraph.matching.models import TenderMatch
-
 
 GET_PREFERENCES_SQL = """
 SELECT
