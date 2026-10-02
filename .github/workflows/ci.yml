@@ -47,12 +47,13 @@ jobs:
           node --check tests/browser/ui_smoke.mjs
           node --check src/tendergraph/api/web/feedback.js
           node --check src/tendergraph/api/web/persistence.js
+          node --check src/tendergraph/api/web/qualification.js
 
       - name: Verify distribution packaging
         run: make package
 
   persistence:
-    name: Product persistence round trip
+    name: Product and qualification PostgreSQL round trips
     runs-on: ubuntu-latest
     timeout-minutes: 15
     services:
@@ -94,6 +95,15 @@ jobs:
           POSTGRES_PORT: 5432
         run: uv run --frozen python scripts/smoke_product_persistence.py
 
+      - name: Exercise qualification intelligence against PostgreSQL
+        env:
+          POSTGRES_DB: tendergraph
+          POSTGRES_USER: tendergraph
+          POSTGRES_PASSWORD: tendergraph-ci
+          POSTGRES_HOST: 127.0.0.1
+          POSTGRES_PORT: 5432
+        run: uv run --frozen python scripts/smoke_qualification.py
+
   container:
     name: Build API image (no publish)
     runs-on: ubuntu-latest
@@ -113,4 +123,6 @@ jobs:
           assert c.get('/assets/app.js').status_code == 200;
           assert c.get('/assets/feedback.js').status_code == 200;
           assert c.get('/assets/persistence.js').status_code == 200;
-          assert c.get('/assets/feedback.css').status_code == 200"
+          assert c.get('/assets/qualification.js').status_code == 200;
+          assert c.get('/assets/feedback.css').status_code == 200;
+          assert c.get('/assets/qualification.css').status_code == 200"

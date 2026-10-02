@@ -41,6 +41,7 @@ from tendergraph.pipeline.status import (
     read_operational_status,
 )
 from tendergraph.product.router import router as product_router
+from tendergraph.qualification.router import router as qualification_router
 from tendergraph.rag.errors import GenerationUnavailable, InvalidGeneratedAnswer
 from tendergraph.rag.evidence import TenderEvidenceRepository
 from tendergraph.rag.factory import build_answer_service
@@ -113,6 +114,7 @@ def create_app(
     )
 
     application.include_router(product_router)
+    application.include_router(qualification_router)
 
     web_dir = Path(__file__).parent / "web"
     application.mount("/assets", StaticFiles(directory=web_dir), name="assets")
