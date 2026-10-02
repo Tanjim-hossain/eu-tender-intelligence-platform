@@ -352,8 +352,10 @@ class DocumentService:
             coverage = "partial"
 
         actions = [
-            "Verify extracted requirements against the original buyer "
-            "documents before a bid/no-bid decision."
+            (
+                "Verify extracted requirements against the original buyer "
+                "documents before a bid/no-bid decision."
+            )
         ]
         if package.package_status == "not_ingested":
             actions.insert(
