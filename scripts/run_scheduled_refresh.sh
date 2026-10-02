@@ -103,6 +103,20 @@ status=0
 uv run --frozen --env-file .env \
   python scripts/scheduled_refresh.py "$@" || status=$?
 
+if [[ "${status}" -eq 0 ]]; then
+  echo
+echo "Refreshing personalized tender alert digests..."
+  alert_status=0
+  uv run --frozen --env-file .env \
+    python scripts/refresh_tender_alerts.py || alert_status=$?
+  if [[ "${alert_status}" -ne 0 ]]; then
+    echo "ERROR: Tender data refreshed, but alert digest refresh failed." >&2
+    status="${alert_status}"
+  fi
+else
+  echo "Skipping alert refresh because the TED refresh failed." >&2
+fi
+
 echo
 echo "============================================================"
 echo "Finished: $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
