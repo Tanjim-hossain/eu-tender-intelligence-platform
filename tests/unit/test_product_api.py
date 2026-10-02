@@ -109,6 +109,7 @@ def test_get_product_state() -> None:
     repository = Mock(
         spec=ProductRepository
     )
+    repository.get_account.return_value = _account()
     repository.get_state.return_value = ProductState(
         account=_account(),
         profile=_profile(),
@@ -132,6 +133,7 @@ def test_product_state_returns_404_for_unknown_account() -> None:
     repository = Mock(
         spec=ProductRepository
     )
+    repository.get_account.return_value = None
     repository.get_state.return_value = None
 
     response = _client(repository).get(
