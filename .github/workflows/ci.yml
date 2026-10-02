@@ -47,13 +47,14 @@ jobs:
           node --check tests/browser/ui_smoke.mjs
           node --check src/tendergraph/api/web/feedback.js
           node --check src/tendergraph/api/web/persistence.js
+          node --check src/tendergraph/api/web/auth.js
           node --check src/tendergraph/api/web/qualification.js
 
       - name: Verify distribution packaging
         run: make package
 
   persistence:
-    name: Product, qualification, and document PostgreSQL round trips
+    name: Product, auth, qualification, and document PostgreSQL round trips
     runs-on: ubuntu-latest
     timeout-minutes: 15
     services:
@@ -87,7 +88,7 @@ jobs:
         run: uv sync --frozen
 
       - name: Exercise product persistence against PostgreSQL
-        env:
+        env: &postgres-env
           POSTGRES_DB: tendergraph
           POSTGRES_USER: tendergraph
           POSTGRES_PASSWORD: tendergraph-ci
@@ -95,22 +96,16 @@ jobs:
           POSTGRES_PORT: 5432
         run: uv run --frozen python scripts/smoke_product_persistence.py
 
+      - name: Exercise auth account isolation against PostgreSQL
+        env: *postgres-env
+        run: uv run --frozen python scripts/smoke_auth.py
+
       - name: Exercise qualification intelligence against PostgreSQL
-        env:
-          POSTGRES_DB: tendergraph
-          POSTGRES_USER: tendergraph
-          POSTGRES_PASSWORD: tendergraph-ci
-          POSTGRES_HOST: 127.0.0.1
-          POSTGRES_PORT: 5432
+        env: *postgres-env
         run: uv run --frozen python scripts/smoke_qualification.py
 
       - name: Exercise document package intelligence against PostgreSQL
-        env:
-          POSTGRES_DB: tendergraph
-          POSTGRES_USER: tendergraph
-          POSTGRES_PASSWORD: tendergraph-ci
-          POSTGRES_HOST: 127.0.0.1
-          POSTGRES_PORT: 5432
+        env: *postgres-env
         run: uv run --frozen python scripts/smoke_document_intelligence.py
 
   container:
@@ -133,6 +128,8 @@ jobs:
           assert c.get('/assets/app.js').status_code == 200;
           assert c.get('/assets/feedback.js').status_code == 200;
           assert c.get('/assets/persistence.js').status_code == 200;
+          assert c.get('/assets/auth.js').status_code == 200;
+          assert c.get('/assets/auth.css').status_code == 200;
           assert c.get('/assets/qualification.js').status_code == 200;
           assert c.get('/assets/feedback.css').status_code == 200;
           assert c.get('/assets/qualification.css').status_code == 200"
