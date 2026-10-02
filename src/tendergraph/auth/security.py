@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import binascii
 import hashlib
 import hmac
 import secrets
@@ -51,7 +52,7 @@ def verify_password(password: str, encoded: str) -> bool:
             p=int(p_raw),
             dklen=len(expected),
         )
-    except (ValueError, TypeError):
+    except (ValueError, TypeError, binascii.Error):
         return False
     return hmac.compare_digest(actual, expected)
 
