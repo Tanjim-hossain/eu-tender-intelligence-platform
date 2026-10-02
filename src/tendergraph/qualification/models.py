@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -22,11 +22,14 @@ EvidenceSection = Literal[
     "deadline",
 ]
 RiskSeverity = Literal["low", "medium", "high", "unknown"]
-ReviewStatus = Literal[
-    "no_flags",
-    "attention",
-    "critical_attention",
-    "insufficient_evidence",
+ReviewStatus = Annotated[
+    str,
+    Field(
+        pattern=(
+            "^(no_flags|attention|critical_attention|"
+            "insufficient_evidence)$"
+        )
+    ),
 ]
 EvidenceCoverage = Literal["none", "limited", "substantive"]
 
