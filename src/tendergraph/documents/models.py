@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, HttpUrl
+from pydantic import BaseModel, ConfigDict, Field
 
 DocumentStatus = Literal[
     "discovered",
@@ -29,7 +29,7 @@ class ProcurementDocumentReference(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     document_id: str = Field(min_length=1, max_length=300)
-    source_url: HttpUrl
+    source_url: str = Field(min_length=1, max_length=4000)
     restricted: bool = False
     restriction_code: str | None = Field(default=None, max_length=100)
     official_languages: list[str] = Field(default_factory=list, max_length=30)
