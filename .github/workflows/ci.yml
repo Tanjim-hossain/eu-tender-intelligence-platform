@@ -53,7 +53,7 @@ jobs:
         run: make package
 
   persistence:
-    name: Product and qualification PostgreSQL round trips
+    name: Product, qualification, and document PostgreSQL round trips
     runs-on: ubuntu-latest
     timeout-minutes: 15
     services:
@@ -104,6 +104,15 @@ jobs:
           POSTGRES_PORT: 5432
         run: uv run --frozen python scripts/smoke_qualification.py
 
+      - name: Exercise document package intelligence against PostgreSQL
+        env:
+          POSTGRES_DB: tendergraph
+          POSTGRES_USER: tendergraph
+          POSTGRES_PASSWORD: tendergraph-ci
+          POSTGRES_HOST: 127.0.0.1
+          POSTGRES_PORT: 5432
+        run: uv run --frozen python scripts/smoke_document_intelligence.py
+
   container:
     name: Build API image (no publish)
     runs-on: ubuntu-latest
@@ -117,8 +126,9 @@ jobs:
           docker run --rm --network none
           --entrypoint uv tendergraph-api:ci
           run --no-project --python /app/.venv/bin/python --no-sync python -c
-          "from fastapi.testclient import TestClient; from tendergraph.api.app import create_app;
+          "import shutil; from fastapi.testclient import TestClient; from tendergraph.api.app import create_app;
           c = TestClient(create_app(use_lifespan=False));
+          assert shutil.which('pdftotext');
           assert c.get('/').status_code == 200;
           assert c.get('/assets/app.js').status_code == 200;
           assert c.get('/assets/feedback.js').status_code == 200;
