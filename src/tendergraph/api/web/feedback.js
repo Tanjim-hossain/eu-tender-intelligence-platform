@@ -2,6 +2,12 @@
 (() => {
   const SAVED_KEY = "tendergraph.savedOpportunities.v1";
   const IGNORED_KEY = "tendergraph.ignoredOpportunities.v1";
+  const STAGES = [
+    ["reviewing", "Reviewing"],
+    ["qualified", "Qualified"],
+    ["bid", "Bid planned"],
+    ["no_bid", "No-bid"]
+  ];
   const nativeFetch = window.fetch.bind(window);
   let latestMatches = [];
   let enhanceTimer = null;
@@ -52,6 +58,7 @@
     const amount = Number.isFinite(number) ? new Intl.NumberFormat("en", {maximumFractionDigits:0}).format(number) : String(value);
     return `${currency || ""} ${amount}`.trim();
   };
+  const normalizeStage = (value) => STAGES.some(([key]) => key === value) ? value : "reviewing";
 
   function updateCounts() {
     const savedCount = Object.keys(saved()).length;
@@ -64,13 +71,22 @@
   function toggleSaved(item, button) {
     const state = saved();
     if (state[item.publication_number]) delete state[item.publication_number];
-    else state[item.publication_number] = {...item, saved_at:new Date().toISOString()};
+    else state[item.publication_number] = {...item, saved_at:new Date().toISOString(), stage:"reviewing", note:""};
     write(SAVED_KEY, state);
     updateCounts();
     const active = Boolean(state[item.publication_number]);
     button.textContent = active ? "Saved ✓" : "Save opportunity";
     button.classList.toggle("saved", active);
     renderSaved();
+  }
+
+  function updateSavedItem(publicationNumber, patch, rerender = false) {
+    const state = saved();
+    const current = state[publicationNumber];
+    if (!current) return;
+    state[publicationNumber] = {...current, ...patch, updated_at:new Date().toISOString()};
+    write(SAVED_KEY, state);
+    if (rerender) renderSaved(); else updatePipelineSummary(Object.values(state));
   }
 
   function ignoreItem(item) {
@@ -132,10 +148,42 @@
     updateCounts();
   }
 
+  function updatePipelineSummary(items) {
+    const workspace = $("saved-workspace");
+    const toolbar = workspace?.querySelector(".saved-toolbar");
+    if (!workspace || !toolbar) return;
+    let summary = $("pipeline-summary");
+    if (!summary) {
+      summary = make("div", null, "pipeline-summary");
+      summary.id = "pipeline-summary";
+      toolbar.insertAdjacentElement("afterend", summary);
+    }
+    const counts = Object.fromEntries(STAGES.map(([key]) => [key, 0]));
+    items.forEach((item) => { counts[normalizeStage(item.stage)] += 1; });
+    summary.replaceChildren();
+    STAGES.forEach(([key, label]) => {
+      const chip = make("span", null, `pipeline-chip stage-${key}`);
+      chip.append(make("strong", String(counts[key])), document.createTextNode(` ${label}`));
+      summary.append(chip);
+    });
+  }
+
+  function stageSelect(item) {
+    const select = make("select", null, "pipeline-stage");
+    select.setAttribute("aria-label", `Pipeline stage for ${item.publication_number}`);
+    const current = normalizeStage(item.stage);
+    STAGES.forEach(([value, label]) => {
+      const option = make("option", label); option.value = value; option.selected = value === current; select.append(option);
+    });
+    select.addEventListener("change", () => updateSavedItem(item.publication_number, {stage:select.value}, true));
+    return select;
+  }
+
   function renderSaved() {
     const container = $("saved-results");
     if (!container) return;
     const items = Object.values(saved()).sort((a, b) => String(b.saved_at || "").localeCompare(String(a.saved_at || "")));
+    updatePipelineSummary(items);
     container.replaceChildren();
     if (!items.length) {
       const empty = make("div", null, "empty-state saved-empty");
@@ -145,13 +193,24 @@
       return;
     }
     items.forEach((item) => {
-      const card = make("article", null, "saved-card");
+      const card = make("article", null, `saved-card stage-${normalizeStage(item.stage)}`);
       const top = make("div", null, "saved-card-top");
       const meta = make("div", null, "saved-meta");
       meta.append(make("span", item.buyer_country || "—"), make("span", "·"), make("span", item.publication_number));
       top.append(meta, make("span", `${Math.round(item.match_score || 0)}% fit`, "saved-score"));
       const fields = make("div", null, "saved-card-fields");
       fields.append(make("span", item.buyer_name || "Buyer not stated"), make("span", `Deadline: ${displayDate(item.earliest_deadline)}`), make("span", `Value: ${displayValue(item.estimated_value, item.estimated_value_currency)}`));
+
+      const decision = make("div", null, "pipeline-controls");
+      const stageField = make("label", null, "pipeline-field");
+      stageField.append(make("span", "Decision stage"), stageSelect(item));
+      const noteField = make("label", null, "pipeline-field pipeline-note-field");
+      const note = make("textarea", null, "pipeline-note");
+      note.rows = 2; note.maxLength = 500; note.placeholder = "Add decision notes, requirements to verify, or a no-bid reason"; note.value = item.note || "";
+      note.addEventListener("change", () => updateSavedItem(item.publication_number, {note:note.value.trim()}));
+      noteField.append(make("span", "Decision note"), note);
+      decision.append(stageField, noteField);
+
       const actions = make("div", null, "saved-card-actions");
       const url = safeTedUrl(item.source_html_url);
       if (url) {
@@ -163,7 +222,7 @@
         const state = saved(); delete state[item.publication_number]; write(SAVED_KEY, state); renderSaved(); scheduleEnhance();
       });
       actions.append(remove);
-      card.append(top, make("h3", item.title || "Untitled tender", "card-title"), fields, actions);
+      card.append(top, make("h3", item.title || "Untitled tender", "card-title"), fields, decision, actions);
       container.append(card);
     });
     updateCounts();
