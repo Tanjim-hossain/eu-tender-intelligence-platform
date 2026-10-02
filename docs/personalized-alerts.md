@@ -37,21 +37,34 @@ Preferences live in PostgreSQL under `product.alert_preferences`. Detected oppor
 
 The same product-account authorization boundary used by persisted profile and opportunity state applies to alert endpoints. Registered accounts require their authenticated session; local accounts retain local-first compatibility.
 
-## Batch refresh
+## Batch and scheduled refresh
 
 Once an account has persisted enabled alert preferences, all enabled accounts can be refreshed with:
 
 ```bash
-uv run python scripts/refresh_tender_alerts.py
+make alerts-refresh
+```
+
+or directly:
+
+```bash
+uv run --env-file .env python scripts/refresh_tender_alerts.py
 ```
 
 A specific account can be refreshed with:
 
 ```bash
-uv run python scripts/refresh_tender_alerts.py --account-id <uuid>
+uv run --env-file .env python scripts/refresh_tender_alerts.py --account-id <uuid>
 ```
 
-This command is deliberately delivery-provider agnostic. It can be called by cron, launchd, systemd timers, or a future deployment scheduler without requiring a paid email/SMS service.
+The existing `make scheduled-refresh` flow now runs alert refresh automatically after a successful TED refresh. The operational sequence is therefore:
+
+1. ingest and normalize new TED notices;
+2. rebuild the retrieval data needed by the scheduled refresh workflow;
+3. refresh all enabled personalized alert digests;
+4. surface any alert-refresh failure as a failed scheduled run instead of silently reporting success.
+
+The alert runner is delivery-provider agnostic and does not require a paid email/SMS service.
 
 ## v1 boundary
 
