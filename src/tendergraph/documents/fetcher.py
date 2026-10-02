@@ -66,7 +66,7 @@ def validate_public_http_url(url: str) -> None:
         raise DocumentFetchError("Document hostname resolved to no addresses")
 
     for address in addresses:
-        ip_value = address[4][0]
+        ip_value = str(address[4][0])
         if not _is_public_ip(ip_value):
             raise UnsafeDocumentUrlError("Document URL resolves to a non-public address")
 
