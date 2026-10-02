@@ -22,6 +22,7 @@ from tendergraph.api.models import (
     AnswerSource,
     AskRequest,
     AskResponse,
+    CompanyMatchRequest,
     HealthResponse,
     OperationsStatusResponse,
     SearchRequest,
@@ -34,6 +35,8 @@ from tendergraph.database.config import (
 from tendergraph.database.pool import (
     create_connection_pool,
 )
+from tendergraph.matching.models import CompanyMatchResult
+from tendergraph.matching.service import CompanyMatchingService
 from tendergraph.pipeline.status import (
     read_operational_status,
 )
@@ -78,6 +81,9 @@ async def lifespan(
 
         app.state.db_pool = pool
         app.state.search_service = service
+        app.state.matching_service = CompanyMatchingService(
+            service
+        )
         app.state.answer_service = build_answer_service(
             service, TenderEvidenceRepository(pool), rag_settings, resources
         )
@@ -225,6 +231,30 @@ def create_app(
                 for result in results
             ],
         )
+
+    @application.post(
+        "/matches",
+        response_model=CompanyMatchResult,
+    )
+    def matches(
+        payload: CompanyMatchRequest,
+        request: Request,
+    ) -> CompanyMatchResult:
+        service = cast(
+            CompanyMatchingService,
+            request.app.state.matching_service,
+        )
+        try:
+            return service.match(
+                payload.profile,
+                limit=payload.limit,
+                retrieval_depth=payload.retrieval_depth,
+            )
+        except (OperationalError, PoolTimeout) as exc:
+            raise HTTPException(
+                status_code=503,
+                detail="Database unavailable",
+            ) from exc
 
     @application.post("/ask", response_model=AskResponse)
     def ask(payload: AskRequest, request: Request) -> AskResponse:
