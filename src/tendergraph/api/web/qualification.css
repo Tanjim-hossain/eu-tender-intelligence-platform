@@ -1,4 +1,8 @@
 .qualification-toggle {
+  margin-right: 0.35rem;
+}
+
+.package-toggle {
   margin-right: auto;
 }
 
@@ -8,6 +12,10 @@
   border: 1px solid var(--border, #d9dde3);
   border-radius: 0.8rem;
   background: rgba(248, 249, 251, 0.88);
+}
+
+.package-panel {
+  background: rgba(245, 248, 252, 0.96);
 }
 
 .qualification-header,
@@ -89,6 +97,13 @@
 
 .qualification-evidence {
   font-style: italic;
+}
+
+.package-link {
+  display: inline-flex;
+  margin-top: 0.55rem;
+  font-size: 0.84rem;
+  font-weight: 700;
 }
 
 .signal-pill.explicit {

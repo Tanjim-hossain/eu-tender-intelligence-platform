@@ -9,6 +9,9 @@ COPY src ./src
 RUN --mount=type=cache,target=/root/.cache/uv uv sync --frozen --no-dev --no-editable
 
 FROM python:3.12-slim-bookworm AS runtime
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends poppler-utils \
+    && rm -rf /var/lib/apt/lists/*
 RUN groupadd --gid 10001 tendergraph && useradd --uid 10001 --gid 10001 --create-home tendergraph
 WORKDIR /app
 COPY --from=builder /usr/local/bin/uv /usr/local/bin/uv
@@ -19,7 +22,7 @@ ENV PATH="/app/.venv/bin:$PATH" \
     HF_HOME=/home/tendergraph/.cache/huggingface \
     UV_CACHE_DIR=/home/tendergraph/.cache/uv \
     RAG_PROVIDER=evidence
-RUN mkdir -p /app/data/refresh /home/tendergraph/.cache/huggingface \
+RUN mkdir -p /app/data/refresh /app/data/documents /home/tendergraph/.cache/huggingface \
     && chown -R tendergraph:tendergraph /app/data /home/tendergraph/.cache
 USER 10001:10001
 EXPOSE 8000
