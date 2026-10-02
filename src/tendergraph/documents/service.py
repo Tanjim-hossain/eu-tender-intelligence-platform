@@ -6,7 +6,11 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from tendergraph.documents.extract import extract_document_text
-from tendergraph.documents.fetcher import DocumentFetchError, SafeDocumentFetcher
+from tendergraph.documents.fetcher import (
+    DocumentFetchError,
+    SafeDocumentFetcher,
+    UnsafeDocumentUrlError,
+)
 from tendergraph.documents.models import (
     DocumentPackageIntelligence,
     PackageRequirementSignal,
@@ -211,7 +215,7 @@ class DocumentService:
                 extracted_text=text,
                 error=None,
             )
-        except DocumentFetchError as exc:
+        except (DocumentFetchError, UnsafeDocumentUrlError) as exc:
             message = str(exc)
             status = (
                 "access_denied"
