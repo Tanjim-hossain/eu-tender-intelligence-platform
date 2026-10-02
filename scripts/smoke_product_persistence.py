@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from decimal import Decimal
 
 from tendergraph.database.config import DatabaseSettings
 from tendergraph.database.pool import create_connection_pool
@@ -39,7 +40,7 @@ def main() -> None:
             title="Synthetic persistence smoke tender",
             buyer_name="Synthetic Buyer",
             buyer_country="BEL",
-            estimated_value=250000,
+            estimated_value=Decimal("250000"),
             estimated_value_currency="EUR",
             earliest_deadline=datetime(
                 2026,
