@@ -7,6 +7,8 @@ from fastapi import APIRouter, HTTPException, Request
 from psycopg import OperationalError
 from psycopg_pool import ConnectionPool, PoolTimeout
 
+from tendergraph.auth.router import auth_repository
+from tendergraph.auth.security import SESSION_COOKIE_NAME, session_token_hash
 from tendergraph.matching.models import CompanyProfile
 from tendergraph.product.models import (
     OpportunityStateUpdate,
@@ -54,15 +56,39 @@ def _repository(request: Request) -> ProductRepository:
     return repository
 
 
-def _require_account(
+def _authorize_account(
+    *,
+    request: Request,
     repository: ProductRepository,
     account_id: UUID,
-) -> None:
-    if repository.get_account(account_id) is None:
+) -> ProductAccount:
+    account = repository.get_account(account_id)
+    if account is None:
         raise HTTPException(
             status_code=404,
             detail="Product account not found",
         )
+    if account.account_type == "local":
+        return account
+
+    token = request.cookies.get(SESSION_COOKIE_NAME)
+    if not token:
+        raise HTTPException(
+            status_code=401,
+            detail="Authentication required",
+        )
+    session = auth_repository(request).get_session(session_token_hash(token))
+    if session is None:
+        raise HTTPException(
+            status_code=401,
+            detail="Authentication required",
+        )
+    if session.account.id != account_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Account access denied",
+        )
+    return account
 
 
 @router.post(
@@ -92,8 +118,14 @@ def get_state(
     account_id: UUID,
     request: Request,
 ) -> ProductState:
+    repository = _repository(request)
     try:
-        state = _repository(request).get_state(
+        _authorize_account(
+            request=request,
+            repository=repository,
+            account_id=account_id,
+        )
+        state = repository.get_state(
             account_id
         )
     except (OperationalError, PoolTimeout) as exc:
@@ -122,9 +154,10 @@ def put_profile(
 ) -> CompanyProfile:
     repository = _repository(request)
     try:
-        _require_account(
-            repository,
-            account_id,
+        _authorize_account(
+            request=request,
+            repository=repository,
+            account_id=account_id,
         )
         return repository.upsert_profile(
             account_id,
@@ -146,9 +179,10 @@ def delete_profile(
 ) -> dict[str, str]:
     repository = _repository(request)
     try:
-        _require_account(
-            repository,
-            account_id,
+        _authorize_account(
+            request=request,
+            repository=repository,
+            account_id=account_id,
         )
         repository.delete_profile(account_id)
     except (OperationalError, PoolTimeout) as exc:
@@ -182,9 +216,10 @@ def put_opportunity(
 
     repository = _repository(request)
     try:
-        _require_account(
-            repository,
-            account_id,
+        _authorize_account(
+            request=request,
+            repository=repository,
+            account_id=account_id,
         )
         return repository.upsert_opportunity(
             account_id,
@@ -218,9 +253,10 @@ def delete_opportunity(
 
     repository = _repository(request)
     try:
-        _require_account(
-            repository,
-            account_id,
+        _authorize_account(
+            request=request,
+            repository=repository,
+            account_id=account_id,
         )
         repository.delete_opportunity(
             account_id,
