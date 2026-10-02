@@ -40,6 +40,7 @@ from tendergraph.matching.service import CompanyMatchingService
 from tendergraph.pipeline.status import (
     read_operational_status,
 )
+from tendergraph.product.router import router as product_router
 from tendergraph.rag.errors import GenerationUnavailable, InvalidGeneratedAnswer
 from tendergraph.rag.evidence import TenderEvidenceRepository
 from tendergraph.rag.factory import build_answer_service
@@ -110,6 +111,8 @@ def create_app(
             else None
         ),
     )
+
+    application.include_router(product_router)
 
     web_dir = Path(__file__).parent / "web"
     application.mount("/assets", StaticFiles(directory=web_dir), name="assets")

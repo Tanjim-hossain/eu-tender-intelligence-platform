@@ -1,5 +1,6 @@
 "use strict";
 (() => {
+  import("/assets/persistence.js").catch(() => {});
   const SAVED_KEY = "tendergraph.savedOpportunities.v1";
   const IGNORED_KEY = "tendergraph.ignoredOpportunities.v1";
   const STAGES = [

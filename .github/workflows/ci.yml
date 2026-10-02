@@ -46,9 +46,53 @@ jobs:
         run: |
           node --check tests/browser/ui_smoke.mjs
           node --check src/tendergraph/api/web/feedback.js
+          node --check src/tendergraph/api/web/persistence.js
 
       - name: Verify distribution packaging
         run: make package
+
+  persistence:
+    name: Product persistence round trip
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: tendergraph
+          POSTGRES_USER: tendergraph
+          POSTGRES_PASSWORD: tendergraph-ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U tendergraph -d tendergraph"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10.2.0
+        with:
+          version: "0.12.18"
+          enable-cache: true
+
+      - name: Install Python
+        run: uv python install 3.12
+
+      - name: Install project
+        run: uv sync --frozen
+
+      - name: Exercise product persistence against PostgreSQL
+        env:
+          POSTGRES_DB: tendergraph
+          POSTGRES_USER: tendergraph
+          POSTGRES_PASSWORD: tendergraph-ci
+          POSTGRES_HOST: 127.0.0.1
+          POSTGRES_PORT: 5432
+        run: uv run --frozen python scripts/smoke_product_persistence.py
 
   container:
     name: Build API image (no publish)
@@ -68,4 +112,5 @@ jobs:
           assert c.get('/').status_code == 200;
           assert c.get('/assets/app.js').status_code == 200;
           assert c.get('/assets/feedback.js').status_code == 200;
+          assert c.get('/assets/persistence.js').status_code == 200;
           assert c.get('/assets/feedback.css').status_code == 200"
