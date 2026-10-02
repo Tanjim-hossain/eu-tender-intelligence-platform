@@ -26,8 +26,12 @@
   const rawRemove = (key) => {
     nativeRemoveItem.call(localStorage, key);
   };
+  const clearWorkspaceCache = () => {
+    [PROFILE_KEY, SAVED_KEY, IGNORED_KEY, DIRTY_KEY].forEach(rawRemove);
+  };
   const request = async (path, options = {}) => {
     const response = await fetch(path, {
+      credentials: "same-origin",
       ...options,
       headers: {"Content-Type": "application/json", ...(options.headers || {})}
     });
@@ -46,13 +50,23 @@
     rawSet(ACCOUNT_KEY, accountId);
     return accountId;
   };
+  const authenticatedAccount = async () => {
+    try {
+      const status = await request("/auth/me");
+      return status.authenticated && status.account ? status.account : null;
+    } catch (error) {
+      console.warn("TenderGraph auth status unavailable", error);
+      return null;
+    }
+  };
   const ensureAccount = async () => {
     if (!accountId) return createAccount();
     try {
       await request(`/product/accounts/${accountId}/state`);
       return accountId;
     } catch (error) {
-      if (error.status !== 404) throw error;
+      if (![401, 403, 404].includes(error.status)) throw error;
+      if ([401, 403].includes(error.status)) clearWorkspaceCache();
       rawRemove(ACCOUNT_KEY);
       accountId = null;
       return createAccount();
@@ -167,19 +181,29 @@
     }
   };
   const bootstrap = async () => {
+    const previousAccountId = accountId;
+    const registered = await authenticatedAccount();
+    const switchedAccount = Boolean(
+      registered && previousAccountId && previousAccountId !== registered.id
+    );
+    if (registered) {
+      accountId = registered.id;
+      rawSet(ACCOUNT_KEY, accountId);
+    }
+
     const hadLocalState = Boolean(
       localStorage.getItem(PROFILE_KEY)
       || localStorage.getItem(SAVED_KEY)
       || localStorage.getItem(IGNORED_KEY)
     );
-    const locallyDirty = localStorage.getItem(DIRTY_KEY) === "1";
+    const locallyDirty = !switchedAccount && localStorage.getItem(DIRTY_KEY) === "1";
     const id = await ensureAccount();
     const state = await request(`/product/accounts/${id}/state`);
     const serverHasState = Boolean(
       state.profile
       || (state.opportunities || []).length
     );
-    if (locallyDirty || (hadLocalState && !serverHasState)) {
+    if (!switchedAccount && (locallyDirty || (hadLocalState && !serverHasState))) {
       await syncNow();
       return;
     }
