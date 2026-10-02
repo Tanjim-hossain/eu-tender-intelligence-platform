@@ -1,6 +1,9 @@
 import pytest
 
-from tendergraph.documents.fetcher import UnsafeDocumentUrlError, validate_public_http_url
+from tendergraph.documents.fetcher import (
+    UnsafeDocumentUrlError,
+    validate_public_http_url,
+)
 
 
 def test_document_fetcher_blocks_loopback() -> None:
