@@ -29,6 +29,7 @@ from tendergraph.api.models import (
     SearchResponse,
     SearchResult,
 )
+from tendergraph.auth.router import router as auth_router
 from tendergraph.database.config import (
     DatabaseSettings,
 )
@@ -114,6 +115,7 @@ def create_app(
         ),
     )
 
+    application.include_router(auth_router)
     application.include_router(product_router)
     application.include_router(qualification_router)
     application.include_router(documents_router)
