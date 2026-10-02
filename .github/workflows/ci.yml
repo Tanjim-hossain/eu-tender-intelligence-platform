@@ -42,8 +42,10 @@ jobs:
           RAG_PROVIDER: evidence
         run: make check
 
-      - name: Check browser smoke test syntax
-        run: node --check tests/browser/ui_smoke.mjs
+      - name: Check browser JavaScript syntax
+        run: |
+          node --check tests/browser/ui_smoke.mjs
+          node --check src/tendergraph/api/web/feedback.js
 
       - name: Verify distribution packaging
         run: make package
@@ -64,4 +66,6 @@ jobs:
           "from fastapi.testclient import TestClient; from tendergraph.api.app import create_app;
           c = TestClient(create_app(use_lifespan=False));
           assert c.get('/').status_code == 200;
-          assert c.get('/assets/app.js').status_code == 200"
+          assert c.get('/assets/app.js').status_code == 200;
+          assert c.get('/assets/feedback.js').status_code == 200;
+          assert c.get('/assets/feedback.css').status_code == 200"
