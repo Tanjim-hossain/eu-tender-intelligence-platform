@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, date, datetime
+from decimal import Decimal
 
 from tendergraph.alerts.models import AlertPreferencesUpdate
 from tendergraph.alerts.repository import AlertRepository
@@ -41,7 +42,7 @@ def main() -> None:
             buyer_name="Synthetic Buyer",
             buyer_country="BEL",
             procedure_type="open",
-            estimated_value=250000,
+            estimated_value=Decimal(250000),
             estimated_value_currency="EUR",
             earliest_deadline=datetime(2026, 11, 1, tzinfo=UTC),
             source_html_url=(
