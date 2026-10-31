@@ -10,6 +10,7 @@ from tendergraph.documents.fetcher import DocumentFetchError, UnsafeDocumentUrlE
 from tendergraph.documents.models import (
     DocumentIngestRequest,
     DocumentPackageIntelligence,
+    DocumentProvenance,
     TenderDocumentPackage,
 )
 from tendergraph.documents.repository import DocumentRepository
@@ -98,6 +99,22 @@ def get_document_intelligence(
 ) -> DocumentPackageIntelligence:
     try:
         return _service(request).intelligence(
+            _clean_publication_number(publication_number)
+        )
+    except Exception as exc:
+        raise _translate_error(exc) from exc
+
+
+@router.get(
+    "/{publication_number}/provenance",
+    response_model=DocumentProvenance,
+)
+def get_document_provenance(
+    publication_number: str,
+    request: Request,
+) -> DocumentProvenance:
+    try:
+        return _service(request).provenance(
             _clean_publication_number(publication_number)
         )
     except Exception as exc:
