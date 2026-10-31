@@ -294,7 +294,10 @@ class DocumentRepository:
                           AND chunk.document_id = asset.document_id
                     ), 0),
                     (
-                        SELECT MAX(chunk.page_number)
+                        SELECT NULLIF(
+                            COUNT(DISTINCT chunk.page_number),
+                            0
+                        )
                         FROM documents.chunks AS chunk
                         WHERE chunk.publication_number = asset.publication_number
                           AND chunk.document_id = asset.document_id
