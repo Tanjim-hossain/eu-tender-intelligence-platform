@@ -61,16 +61,42 @@ CREATE TABLE IF NOT EXISTS documents.assets (
 );
 """
 
+CREATE_CHUNKS_SQL = """
+CREATE TABLE IF NOT EXISTS documents.chunks (
+    publication_number TEXT NOT NULL,
+    document_id TEXT NOT NULL,
+    chunk_id TEXT NOT NULL,
+    chunk_index INTEGER NOT NULL CHECK (chunk_index >= 0),
+    page_number INTEGER CHECK (page_number IS NULL OR page_number >= 1),
+    section_title TEXT,
+    text TEXT NOT NULL,
+    character_count INTEGER NOT NULL CHECK (character_count >= 0),
+    checksum TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (publication_number, document_id, chunk_id),
+    FOREIGN KEY (publication_number, document_id)
+        REFERENCES documents.assets(publication_number, document_id)
+        ON DELETE CASCADE
+);
+"""
+
 CREATE_ASSET_INDEX_SQL = """
 CREATE INDEX IF NOT EXISTS idx_documents_assets_publication_status
 ON documents.assets (publication_number, status);
+"""
+
+CREATE_CHUNK_INDEX_SQL = """
+CREATE INDEX IF NOT EXISTS idx_documents_chunks_publication_document
+ON documents.chunks (publication_number, document_id, chunk_index);
 """
 
 SCHEMA_STATEMENTS = (
     CREATE_SCHEMA_SQL,
     CREATE_PACKAGES_SQL,
     CREATE_ASSETS_SQL,
+    CREATE_CHUNKS_SQL,
     CREATE_ASSET_INDEX_SQL,
+    CREATE_CHUNK_INDEX_SQL,
 )
 
 

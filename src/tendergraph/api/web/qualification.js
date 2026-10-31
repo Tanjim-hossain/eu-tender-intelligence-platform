@@ -42,7 +42,19 @@
         if (item.hard_gate) top.append(make("span", "Potential hard gate", "signal-pill hard-gate"));
       }
       if (item.document_id) top.append(make("span", item.document_id, "signal-pill mentioned"));
+      const provenance = [];
+      if (item.page_number != null) provenance.push(`Page ${item.page_number}`);
+      if (item.section_title) provenance.push(`Section: ${item.section_title}`);
+      if (item.chunk_id) provenance.push(`Chunk ${item.chunk_id}`);
+      if (provenance.length) top.append(make("span", provenance.join(" · "), "signal-pill explicit"));
       row.append(top, make("p", item.evidence, "qualification-evidence"));
+      if (item.source_url) {
+        const source = make("a", "Open evidence source ↗", "package-link");
+        source.href = item.source_url;
+        source.target = "_blank";
+        source.rel = "noopener noreferrer";
+        row.append(source);
+      }
       list.append(row);
     });
     return list;
@@ -148,6 +160,10 @@
         link.rel = "noopener noreferrer";
         row.append(top, link);
         if (item.content_type) row.append(make("p", `${item.content_type}${item.byte_count != null ? ` · ${item.byte_count.toLocaleString()} bytes` : ""}`, "qualification-evidence"));
+        const provenanceMeta = [];
+        if (item.chunk_count) provenanceMeta.push(`${item.chunk_count} provenance chunk(s)`);
+        if (item.page_count) provenanceMeta.push(`${item.page_count} page(s) mapped`);
+        if (provenanceMeta.length) row.append(make("p", provenanceMeta.join(" · "), "qualification-evidence"));
         if (item.error) row.append(make("p", item.error, "qualification-error"));
         list.append(row);
       });
