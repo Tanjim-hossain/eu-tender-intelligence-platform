@@ -5,6 +5,8 @@ from fastapi.testclient import TestClient
 from tendergraph.api.app import create_app
 from tendergraph.documents.models import (
     DocumentPackageIntelligence,
+    DocumentProvenance,
+    DocumentProvenanceChunk,
     TenderDocumentPackage,
 )
 from tendergraph.documents.service import TenderNotFoundError
@@ -84,3 +86,38 @@ def test_missing_document_tender_returns_404() -> None:
     response = TestClient(app).get("/documents/missing")
 
     assert response.status_code == 404
+
+
+def test_document_provenance_endpoint() -> None:
+    app = create_app(use_lifespan=False)
+    service = Mock()
+    service.provenance.return_value = DocumentProvenance(
+        publication_number="123-2026",
+        chunk_count=1,
+        documents_with_chunks=1,
+        chunks=[
+            DocumentProvenanceChunk(
+                document_id="spec",
+                source_url="https://buyer.example/spec.pdf",
+                chunk_id="spec:0000",
+                chunk_index=0,
+                page_number=12,
+                section_title="Eligibility",
+                text="The bidder must hold ISO 27001.",
+                character_count=35,
+                checksum="a" * 64,
+            )
+        ],
+        disclaimer="verify",
+    )
+    app.state.document_service = service
+
+    response = TestClient(app).get(
+        "/documents/123-2026/provenance"
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["chunk_count"] == 1
+    assert payload["chunks"][0]["page_number"] == 12
+    assert payload["chunks"][0]["section_title"] == "Eligibility"
