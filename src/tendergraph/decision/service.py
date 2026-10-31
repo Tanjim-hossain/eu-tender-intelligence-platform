@@ -16,7 +16,7 @@ from tendergraph.decision.models import (
 )
 from tendergraph.decision.repository import DecisionReviewRepository
 from tendergraph.documents.service import DocumentService
-from tendergraph.product.models import StoredOpportunityState
+from tendergraph.product.models import ProductState, StoredOpportunityState
 from tendergraph.product.repository import ProductRepository
 from tendergraph.qualification.service import QualificationService
 
@@ -220,7 +220,7 @@ class DecisionDossierService:
         self,
         account_id: UUID,
         publication_number: str,
-    ) -> tuple[StoredOpportunityState, object]:
+    ) -> tuple[StoredOpportunityState, ProductState]:
         state = self._product_repository.get_state(account_id)
         if state is None:
             raise SavedOpportunityNotFoundError(publication_number)
@@ -247,10 +247,8 @@ class DecisionDossierService:
             account_id,
             publication_number,
         )
-        # ProductState is returned by the repository; keeping the lookup together
-        # ensures profile and opportunity state come from one persisted snapshot.
         state = state_obj
-        profile = state.profile  # type: ignore[attr-defined]
+        profile = state.profile
 
         qualification = self._qualification_service.qualify(publication_number)
         package = self._document_service.package(publication_number)
