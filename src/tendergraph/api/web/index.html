@@ -4,7 +4,7 @@
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Match your company profile to European procurement opportunities and inspect the evidence behind each tender.">
   <title>TenderGraph · European procurement intelligence</title>
-  <link rel="stylesheet" href="/assets/style.css"><link rel="stylesheet" href="/assets/feedback.css"><link rel="stylesheet" href="/assets/qualification.css"><script src="/assets/persistence.js" defer></script><script src="/assets/feedback.js" defer></script><script src="/assets/qualification.js" defer></script><script src="/assets/app.js" defer></script><script src="/assets/alerts.js" defer></script>
+  <link rel="stylesheet" href="/assets/style.css"><link rel="stylesheet" href="/assets/feedback.css"><link rel="stylesheet" href="/assets/qualification.css"><link rel="stylesheet" href="/assets/decision.css"><script src="/assets/persistence.js" defer></script><script src="/assets/feedback.js" defer></script><script src="/assets/qualification.js" defer></script><script src="/assets/decision.js" defer></script><script src="/assets/app.js" defer></script><script src="/assets/alerts.js" defer></script>
 </head>
 <body>
   <header class="topbar"><a class="brand" href="/" aria-label="TenderGraph home"><span class="brand-mark" aria-hidden="true">T<span>·</span></span>TenderGraph</a><span class="top-label">EUROPEAN PROCUREMENT INTELLIGENCE</span><a class="docs-link" href="/docs">API docs ↗</a></header>
@@ -63,7 +63,7 @@
       </section>
 
       <section id="saved-workspace" class="workspace" aria-labelledby="saved-title" hidden>
-        <div class="intro"><p class="eyebrow">SAVED OPPORTUNITIES</p><h1 id="saved-title">Build your opportunity pipeline.</h1><p>Keep promising tenders in one place, review evidence-grounded requirement signals, and decide whether to investigate a bid. Saved state is persisted to local PostgreSQL with browser cache fallback.</p></div>
+        <div class="intro"><p class="eyebrow">SAVED OPPORTUNITIES</p><h1 id="saved-title">Build your opportunity pipeline.</h1><p>Keep promising tenders in one place, review evidence-grounded requirements, inspect exact document provenance, and build a consolidated bid/no-bid decision dossier. Saved state is persisted to local PostgreSQL with browser cache fallback.</p></div>
         <div class="saved-toolbar"><div><h2>Saved tenders <span id="saved-workspace-count" class="count">0</span></h2><p>Use Company Matches to add opportunities here.</p></div><button id="clear-saved" class="secondary danger-secondary" type="button">Clear all saved</button></div>
         <div id="saved-results" class="saved-results" aria-live="polite"></div>
       </section>
