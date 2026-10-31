@@ -173,7 +173,7 @@ def main() -> None:
             if item.document_id == "spec"
         )
         assert spec.chunk_count == 1
-        assert spec.page_count == 12
+        assert spec.page_count == 1
         assert provenance.chunk_count == 1
         assert provenance.documents_with_chunks == 1
         assert provenance.chunks[0].checksum == "2" * 64
