@@ -40,7 +40,7 @@ class DecisionReviewUpdate(BaseModel):
     reviewer_note: str = Field(default="", max_length=5000)
 
     @model_validator(mode="after")
-    def unique_keys(self) -> "DecisionReviewUpdate":
+    def unique_keys(self) -> DecisionReviewUpdate:
         keys = [item.key for item in self.items]
         if len(keys) != len(set(keys)):
             raise ValueError("decision review item keys must be unique")
