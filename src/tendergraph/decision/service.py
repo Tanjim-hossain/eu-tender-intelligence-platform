@@ -8,11 +8,11 @@ from uuid import UUID
 from tendergraph.decision.models import (
     BidNoBidDossier,
     ChecklistReviewItem,
+    DeadlineReadiness,
+    DecisionReadiness,
     DecisionReviewUpdate,
     DossierChecklistItem,
     DossierEvidenceSummary,
-    DeadlineReadiness,
-    DecisionReadiness,
     DossierRisk,
     StrategicFitStatus,
 )
