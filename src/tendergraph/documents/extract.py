@@ -213,7 +213,7 @@ def _build_result(
     for index, (value, page_number, section_title) in enumerate(merged):
         checksum_input = (
             f"{page_number or ''}\n{section_title or ''}\n{value}"
-        ).encode("utf-8")
+        ).encode()
         chunks.append(
             ExtractedChunk(
                 chunk_index=index,
