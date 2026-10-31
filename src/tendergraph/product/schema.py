@@ -144,6 +144,26 @@ ON product.alert_events (
 );
 """
 
+CREATE_DECISION_REVIEWS_SQL = """
+CREATE TABLE IF NOT EXISTS product.opportunity_decision_reviews (
+    account_id UUID NOT NULL,
+    publication_number TEXT NOT NULL,
+    items JSONB NOT NULL DEFAULT '[]'::JSONB,
+    reviewer_note TEXT NOT NULL DEFAULT '',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (account_id, publication_number),
+    FOREIGN KEY (account_id, publication_number)
+        REFERENCES product.opportunity_states(account_id, publication_number)
+        ON DELETE CASCADE
+);
+"""
+
+CREATE_DECISION_REVIEW_INDEX_SQL = """
+CREATE INDEX IF NOT EXISTS idx_product_decision_review_updated
+ON product.opportunity_decision_reviews (account_id, updated_at DESC);
+"""
+
 SCHEMA_STATEMENTS = (
     CREATE_SCHEMA_SQL,
     CREATE_ACCOUNTS_SQL,
@@ -157,6 +177,8 @@ SCHEMA_STATEMENTS = (
     CREATE_ALERT_PREFERENCES_SQL,
     CREATE_ALERT_EVENTS_SQL,
     CREATE_ALERT_EVENT_INDEX_SQL,
+    CREATE_DECISION_REVIEWS_SQL,
+    CREATE_DECISION_REVIEW_INDEX_SQL,
 )
 
 
