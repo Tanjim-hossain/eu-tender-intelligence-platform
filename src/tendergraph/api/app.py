@@ -37,6 +37,7 @@ from tendergraph.database.config import (
 from tendergraph.database.pool import (
     create_connection_pool,
 )
+from tendergraph.decision.router import router as decision_router
 from tendergraph.documents.router import router as documents_router
 from tendergraph.matching.models import CompanyMatchResult
 from tendergraph.matching.service import CompanyMatchingService
@@ -119,6 +120,7 @@ def create_app(
     application.include_router(auth_router)
     application.include_router(product_router)
     application.include_router(alerts_router)
+    application.include_router(decision_router)
     application.include_router(qualification_router)
     application.include_router(documents_router)
 
