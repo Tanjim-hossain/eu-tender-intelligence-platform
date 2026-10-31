@@ -53,6 +53,8 @@ class StoredProcurementDocument(BaseModel):
     cache_path: str | None = None
     extraction_method: str | None = None
     extracted_characters: int = Field(default=0, ge=0)
+    chunk_count: int = Field(default=0, ge=0)
+    page_count: int | None = Field(default=None, ge=1)
     error: str | None = None
     updated_at: datetime | None = None
 
@@ -81,6 +83,30 @@ class DocumentIngestRequest(BaseModel):
     force: bool = False
 
 
+class DocumentProvenanceChunk(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    document_id: str
+    source_url: str
+    chunk_id: str
+    chunk_index: int = Field(ge=0)
+    page_number: int | None = Field(default=None, ge=1)
+    section_title: str | None = Field(default=None, max_length=500)
+    text: str
+    character_count: int = Field(ge=0)
+    checksum: str
+
+
+class DocumentProvenance(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    publication_number: str
+    chunk_count: int = Field(ge=0)
+    documents_with_chunks: int = Field(ge=0)
+    chunks: list[DocumentProvenanceChunk]
+    disclaimer: str
+
+
 class PackageRequirementSignal(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -91,6 +117,9 @@ class PackageRequirementSignal(BaseModel):
     evidence: str
     document_id: str
     source_url: str
+    chunk_id: str | None = None
+    page_number: int | None = Field(default=None, ge=1)
+    section_title: str | None = Field(default=None, max_length=500)
     hard_gate: bool = False
 
 
