@@ -1,0 +1,308 @@
+.decision-dossier-toggle {
+  margin-right: 0.35rem;
+}
+
+.decision-panel {
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid #d7dce4;
+  border-radius: 0.9rem;
+  background: #f8fafc;
+}
+
+.decision-header,
+.decision-row-top,
+.decision-meta,
+.decision-item-identity,
+.decision-review-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.decision-header,
+.decision-row-top {
+  justify-content: space-between;
+}
+
+.decision-header h3 {
+  margin: 0.2rem 0 0;
+}
+
+.decision-status,
+.decision-pill,
+.decision-count,
+.decision-category {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.25rem 0.55rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.decision-status {
+  background: #edf1f5;
+  color: #46515f;
+}
+
+.status-ready_for_bid_review {
+  background: #e7f5ec;
+  color: #25643a;
+}
+
+.status-hold_for_evidence {
+  background: #fff2d9;
+  color: #7a5313;
+}
+
+.status-critical_attention,
+.status-deadline_closed {
+  background: #fdeaea;
+  color: #8d2525;
+}
+
+.status-user_no_bid {
+  background: #edf1f5;
+  color: #53606d;
+}
+
+.decision-message,
+.decision-evidence,
+.decision-source,
+.decision-empty,
+.decision-loading,
+.decision-error,
+.decision-disclaimer,
+.decision-pipeline-note {
+  margin: 0.5rem 0 0;
+  color: #596270;
+  font-size: 0.84rem;
+  line-height: 1.55;
+}
+
+.decision-message {
+  font-weight: 600;
+  color: #3d4652;
+}
+
+.decision-meta {
+  flex-wrap: wrap;
+  margin: 0.85rem 0 1rem;
+}
+
+.decision-meta span {
+  border: 1px solid #dfe4ea;
+  border-radius: 999px;
+  padding: 0.3rem 0.55rem;
+  background: #fff;
+  font-size: 0.78rem;
+  color: #5a6470;
+}
+
+.decision-section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 1rem 0 0.55rem;
+  font-size: 0.92rem;
+}
+
+.decision-count {
+  background: #e9edf3;
+  color: #3f4752;
+}
+
+.decision-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(105px, 1fr));
+  gap: 0.55rem;
+  margin: 0.85rem 0;
+}
+
+.decision-summary-card {
+  padding: 0.65rem;
+  border: 1px solid #e0e5eb;
+  border-radius: 0.7rem;
+  background: #fff;
+}
+
+.decision-summary-card strong,
+.decision-summary-card span {
+  display: block;
+}
+
+.decision-summary-card strong {
+  font-size: 1rem;
+}
+
+.decision-summary-card span {
+  margin-top: 0.15rem;
+  color: #68717e;
+  font-size: 0.72rem;
+}
+
+.decision-checklist,
+.decision-risk-list {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.decision-checklist-item,
+.decision-risk {
+  padding: 0.8rem;
+  border: 1px solid #e0e5eb;
+  border-radius: 0.7rem;
+  background: #fff;
+}
+
+.decision-checklist-item.hard-gate {
+  border-color: #e8c2c2;
+}
+
+.decision-item-identity {
+  flex-wrap: wrap;
+}
+
+.decision-category {
+  background: #eef2f6;
+  color: #53606d;
+  text-transform: capitalize;
+}
+
+.decision-pill.explicit {
+  background: #e7f5ec;
+  color: #25643a;
+}
+
+.decision-pill.mentioned {
+  background: #edf1f5;
+  color: #53606d;
+}
+
+.decision-pill.hard-gate {
+  background: #fdeaea;
+  color: #8d2525;
+}
+
+.decision-source {
+  color: #6c7581;
+}
+
+.decision-evidence {
+  font-style: italic;
+}
+
+.decision-source-link {
+  display: inline-flex;
+  margin-top: 0.45rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.decision-review-controls {
+  align-items: flex-end;
+  margin-top: 0.7rem;
+}
+
+.decision-review-controls label,
+.decision-reviewer-field {
+  display: grid;
+  gap: 0.3rem;
+  color: #4f5966;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.decision-review-controls select,
+.decision-review-controls input,
+.decision-reviewer-note {
+  min-height: 2.35rem;
+  border: 1px solid #cfd6df;
+  border-radius: 0.55rem;
+  padding: 0.45rem 0.55rem;
+  background: #fff;
+  color: #26303b;
+  font: inherit;
+}
+
+.decision-item-note {
+  flex: 1;
+}
+
+.decision-reviewer-field {
+  margin-top: 0.8rem;
+}
+
+.decision-reviewer-note {
+  resize: vertical;
+}
+
+.decision-save {
+  margin-top: 0.65rem;
+}
+
+.decision-risk.risk-high {
+  border-color: #e8c2c2;
+}
+
+.decision-risk.risk-medium {
+  border-color: #ead9b4;
+}
+
+.decision-risk.risk-unknown {
+  border-color: #d8dde3;
+}
+
+.decision-pill.risk-high {
+  background: #fdeaea;
+  color: #8d2525;
+}
+
+.decision-pill.risk-medium {
+  background: #fff2d9;
+  color: #7a5313;
+}
+
+.decision-pill.risk-low {
+  background: #e7f5ec;
+  color: #25643a;
+}
+
+.decision-pill.risk-unknown {
+  background: #edf1f5;
+  color: #53606d;
+}
+
+.decision-actions {
+  margin: 0.45rem 0 0 1.25rem;
+  padding: 0;
+  color: #3f4752;
+  font-size: 0.85rem;
+  line-height: 1.55;
+}
+
+.decision-disclaimer {
+  margin-top: 0.95rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #e0e5eb;
+}
+
+.decision-error {
+  color: #8d2525;
+  font-weight: 600;
+}
+
+@media (max-width: 720px) {
+  .decision-header,
+  .decision-row-top,
+  .decision-review-controls {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .decision-item-note {
+    width: 100%;
+  }
+}
