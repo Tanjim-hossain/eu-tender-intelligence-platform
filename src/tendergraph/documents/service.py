@@ -234,6 +234,9 @@ class DocumentService:
                     publication_number,
                     document.document_id,
                     document.source_url,
+                    preserve_existing_on_failure=(
+                        document.status == "extracted"
+                    ),
                 )
             self._update_package_status(publication_number)
 
@@ -251,6 +254,8 @@ class DocumentService:
         publication_number: str,
         document_id: str,
         source_url: str,
+        *,
+        preserve_existing_on_failure: bool = False,
     ) -> None:
         try:
             result = self._fetcher.fetch(
@@ -277,6 +282,9 @@ class DocumentService:
             path.write_bytes(result.content)
 
             text = extraction.text or None
+            if preserve_existing_on_failure and not text:
+                return
+
             status = (
                 "extracted"
                 if text
@@ -326,6 +334,8 @@ class DocumentService:
             DocumentFetchError,
             UnsafeDocumentUrlError,
         ) as exc:
+            if preserve_existing_on_failure:
+                return
             message = str(exc)
             status = (
                 "access_denied"
