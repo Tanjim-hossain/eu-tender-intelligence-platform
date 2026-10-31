@@ -14,11 +14,15 @@ from tendergraph.decision.service import (
     SavedOpportunityNotFoundError,
 )
 from tendergraph.documents.router import _service as document_service
-from tendergraph.documents.service import TenderNotFoundError as DocumentTenderNotFoundError
+from tendergraph.documents.service import (
+    TenderNotFoundError as DocumentTenderNotFoundError,
+)
 from tendergraph.product.router import _authorize_account, _repository
 from tendergraph.product.schema import ensure_product_schema
 from tendergraph.qualification.router import _service as qualification_service
-from tendergraph.qualification.service import TenderNotFoundError as QualificationTenderNotFoundError
+from tendergraph.qualification.service import (
+    TenderNotFoundError as QualificationTenderNotFoundError,
+)
 
 router = APIRouter(prefix="/decisions", tags=["decisions"])
 
