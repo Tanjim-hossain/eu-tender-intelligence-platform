@@ -1,6 +1,6 @@
 # TenderGraph — European Tender Intelligence
 
-TenderGraph is a local-first procurement intelligence product for finding, qualifying, and tracking European public-sector opportunities from TED. It combines an incremental data platform, hybrid retrieval, company-aware matching, evidence-backed question answering, durable opportunity state, deterministic qualification signals, and official procurement-document package review in one FastAPI workspace.
+TenderGraph is a local-first procurement intelligence product for finding, qualifying, and tracking European public-sector opportunities from TED. It combines an incremental data platform, hybrid retrieval, company-aware matching, evidence-backed question answering, durable opportunity state, deterministic qualification signals, exact procurement-document provenance, personalized alerts, and a consolidated bid/no-bid review dossier in one FastAPI workspace.
 
 Built by **Tanjim Hossain** with Python, PostgreSQL/pgvector, dbt, FastAPI, sentence-transformers, and optional local Ollama generation.
 
@@ -9,7 +9,7 @@ Built by **Tanjim Hossain** with Python, PostgreSQL/pgvector, dbt, FastAPI, sent
 TenderGraph currently supports the first two stages of the procurement opportunity workflow:
 
 1. **Find the right tender** — describe a company profile and rank TED notices by capability relevance, target country, contract value, and response window.
-2. **Decide what deserves review** — save opportunities, track a bid/no-bid pipeline, inspect notice-level qualification signals, and ingest officially referenced procurement documents for deeper requirement review.
+2. **Decide whether to bid** — save opportunities, track a bid/no-bid pipeline, inspect notice and procurement-document requirements with page/section provenance, record reviewer evidence status, and consolidate the result into a decision dossier.
 
 The product intentionally does **not** treat a fit score as a win probability or an automated qualification review as a legal eligibility decision. Users are directed back to the official TED notice and original buyer documents before acting.
 
@@ -20,7 +20,9 @@ The product intentionally does **not** treat a fit score as a win probability or
 - **Company matching:** profile-aware tender ranking with semantic fit, country/value/deadline signals, explainable match reasons, and risk hints.
 - **Opportunity workflow:** save/ignore feedback, Reviewing / Qualified / Bid planned / No-bid stages, decision notes, and durable PostgreSQL-backed product state with browser cache fallback.
 - **Notice qualification intelligence:** deterministic extraction of supported requirement and document signals from indexed TED notice text, including explicit-vs-mentioned evidence, deadline risk, potential hard-gate flags, and next review actions.
-- **Procurement-document intelligence:** official TED XML document-reference discovery, restricted/unrestricted access classification, SSRF-safe bounded fetching, local raw-file caching, text extraction for supported formats, package-level requirement signals, and source-document traceability.
+- **Procurement-document intelligence:** official TED XML document-reference discovery, restricted/unrestricted access classification, SSRF-safe bounded fetching, local raw-file caching, text extraction for supported formats, package-level requirement signals, and page/section/chunk provenance.
+- **Decision dossier:** account-scoped consolidation of stored company fit, deadline readiness, notice qualification, procurement-document evidence, potential hard gates, document coverage, manual evidence confirmations, risks, and next actions without producing a legal eligibility verdict or win probability.
+- **Personalized alerts:** persisted account preferences and deduplicated recent/open/high-fit opportunity alerts refreshed after scheduled TED ingestion.
 - **Evidence workspace:** evidence selection, cited answers, abstention, and official TED source links; local Ollama generation is optional.
 - **Operations:** scheduler wrapper, freshness monitoring, reproducible CI, real PostgreSQL smoke tests, and optional API container packaging.
 
@@ -66,8 +68,11 @@ flowchart TD
     D --> O["Official TED XML"]
     O --> P["Procurement document references"]
     P --> Q["Safe fetch + local text extraction"]
-    Q --> R["Package requirement intelligence"]
+    Q --> R["Package requirement + provenance intelligence"]
     J --> N["Local PostgreSQL product state"]
+    L --> S["Consolidated bid/no-bid dossier"]
+    R --> S
+    N --> S
 ```
 
 See [architecture and consistency](docs/ARCHITECTURE.md) for retained artifacts, failure boundaries, and recovery behavior.
@@ -110,6 +115,9 @@ In the browser you can:
 - maintain decision stages and notes,
 - open **Review notice requirements** on a saved tender,
 - use **Ingest tender package** to discover and review officially linked procurement documents,
+- inspect exact page/section/chunk provenance when supported,
+- open **Decision dossier** to consolidate strategic fit, deadlines, requirements, evidence status, and risks,
+- mark requirement evidence as verified, needs evidence, not applicable, or unreviewed,
 - open original buyer document URLs for manual verification,
 - search the loaded TED dataset directly,
 - ask evidence-backed questions and follow official TED citations.
@@ -139,6 +147,9 @@ A failed embedding stage can be repaired without re-ingesting TED using `make re
 | `GET /documents/{publication_number}` | Read procurement-document package state |
 | `POST /documents/{publication_number}/ingest` | Discover official document references and safely fetch unrestricted resources |
 | `GET /documents/{publication_number}/intelligence` | Requirement/risk signals from extracted procurement-document text |
+| `GET /documents/{publication_number}/provenance` | Inspect persisted page/section/chunk provenance |
+| `GET /decisions/accounts/{account_id}/opportunities/{publication_number}` | Build the consolidated bid/no-bid decision dossier |
+| `PUT /decisions/accounts/{account_id}/opportunities/{publication_number}/review` | Persist manual evidence review and return a refreshed dossier |
 | `POST /ask` | Evidence-only or generated answer with citations |
 | `POST /product/accounts` | Create a local-first product account |
 | `GET /product/accounts/{account_id}/state` | Read durable profile and opportunity state |
@@ -204,6 +215,7 @@ CI performs:
 - browser JavaScript syntax checks,
 - distribution/package verification,
 - a real PostgreSQL product-state round trip,
+- a real PostgreSQL bid-decision review persistence round trip,
 - a real PostgreSQL notice-qualification round trip using a synthetic tender,
 - a real PostgreSQL procurement-document intelligence round trip with synthetic extracted/restricted document state,
 - Docker image build and installed static/API smoke checks,
@@ -213,7 +225,7 @@ The qualification and document-package smokes are deterministic and do not call 
 
 ## Deployment and security boundary
 
-TenderGraph remains a **local-first product workspace**, not a public multi-user production service. The current UUID local account is not authentication. Public deployment still requires, at minimum, real authentication/authorization, TLS, rate limiting, resource controls, backups, deployment validation, and operational monitoring appropriate to the hosting environment.
+TenderGraph remains a **local-first product workspace**, not a public multi-user production service. Local registered accounts now have server-side password credentials, sessions, and account isolation, while anonymous local accounts remain supported for development. This is not yet production-internet security: public deployment still requires TLS/proxy hardening, rate limiting and abuse controls, CSRF review, secret management, resource controls, backups, monitoring, and broader security validation.
 
 Procurement-document fetching is deliberately bounded. Only HTTP/HTTPS URLs published by the official TED notice are considered, redirects are revalidated, private/local network destinations are blocked, responses have time/size limits, and restricted/authenticated resources are not bypassed. This reduces SSRF and uncontrolled-crawl risk but is not a substitute for a production network sandbox and egress policy.
 
