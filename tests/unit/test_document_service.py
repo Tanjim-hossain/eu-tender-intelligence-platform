@@ -268,8 +268,12 @@ def test_ingest_discovers_fetches_extracts_and_tracks_provenance(
     assert len(package.documents) == 2
     assert package.extracted_document_count == 1
     assert package.restricted_document_count == 1
-    assert package.documents[1].document_id == "spec"
-    assert package.documents[1].chunk_count >= 1
+    spec = next(
+        item
+        for item in package.documents
+        if item.document_id == "spec"
+    )
+    assert spec.chunk_count >= 1
     assert repository.fetches["spec"]["status"] == "extracted"
     assert not (
         tmp_path / "123-2026"
