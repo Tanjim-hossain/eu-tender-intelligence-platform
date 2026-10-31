@@ -355,7 +355,7 @@ def _extract_pdf(
 
     raw_text = completed.stdout.decode("utf-8", errors="replace")
     pages = raw_text.split("\f")
-    segments = [
+    segments: list[tuple[str, int | None, str | None]] = [
         (page, page_number, None)
         for page_number, page in enumerate(pages, start=1)
         if _normalize_piece(page)
