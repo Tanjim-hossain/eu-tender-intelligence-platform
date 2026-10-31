@@ -252,6 +252,9 @@ class DecisionDossierService:
         )
         state = state_obj
         profile = state.profile
+        snapshot = opportunity.snapshot
+        if snapshot is None:
+            raise SavedOpportunityNotFoundError(publication_number)
 
         qualification = self._qualification_service.qualify(publication_number)
         package = self._document_service.package(publication_number)
@@ -291,41 +294,41 @@ class DecisionDossierService:
 
         # Procurement-document evidence wins over notice-only evidence for the
         # same stable requirement key because it can carry page/section provenance.
-        for item in package_intelligence.requirements:
-            manual = review_map.get(item.key)
-            checklist_by_key[item.key] = DossierChecklistItem(
-                key=item.key,
-                category=item.category,
-                label=item.label,
+        for package_requirement in package_intelligence.requirements:
+            manual = review_map.get(package_requirement.key)
+            checklist_by_key[package_requirement.key] = DossierChecklistItem(
+                key=package_requirement.key,
+                category=package_requirement.category,
+                label=package_requirement.label,
                 source_kind="procurement_document",
-                evidence_strength=item.evidence_strength,
-                hard_gate=item.hard_gate,
-                evidence=item.evidence,
-                source_url=item.source_url,
-                document_id=item.document_id,
-                chunk_id=item.chunk_id,
-                page_number=item.page_number,
-                section_title=item.section_title,
+                evidence_strength=package_requirement.evidence_strength,
+                hard_gate=package_requirement.hard_gate,
+                evidence=package_requirement.evidence,
+                source_url=package_requirement.source_url,
+                document_id=package_requirement.document_id,
+                chunk_id=package_requirement.chunk_id,
+                page_number=package_requirement.page_number,
+                section_title=package_requirement.section_title,
                 manual_status=(
                     manual.status if manual is not None else "unreviewed"
                 ),
                 manual_note=manual.note if manual is not None else "",
             )
 
-        for item in qualification.requirements:
-            if item.key in checklist_by_key:
+        for notice_requirement in qualification.requirements:
+            if notice_requirement.key in checklist_by_key:
                 continue
-            manual = review_map.get(item.key)
-            checklist_by_key[item.key] = DossierChecklistItem(
-                key=item.key,
-                category=item.category,
-                label=item.label,
+            manual = review_map.get(notice_requirement.key)
+            checklist_by_key[notice_requirement.key] = DossierChecklistItem(
+                key=notice_requirement.key,
+                category=notice_requirement.category,
+                label=notice_requirement.label,
                 source_kind="notice",
-                evidence_strength=item.evidence_strength,
-                hard_gate=item.hard_gate,
-                evidence=item.evidence,
+                evidence_strength=notice_requirement.evidence_strength,
+                hard_gate=notice_requirement.hard_gate,
+                evidence=notice_requirement.evidence,
                 source_url=qualification.source_html_url,
-                section_title=item.source_section.replace("_", " "),
+                section_title=notice_requirement.source_section.replace("_", " "),
                 manual_status=(
                     manual.status if manual is not None else "unreviewed"
                 ),
@@ -341,21 +344,21 @@ class DecisionDossierService:
             ),
         )
 
-        for risk in qualification.risks:
+        for qualification_risk in qualification.risks:
             risks.append(
                 DossierRisk(
-                    key=f"notice:{risk.key}",
-                    severity=risk.severity,
-                    message=risk.message,
+                    key=f"notice:{qualification_risk.key}",
+                    severity=qualification_risk.severity,
+                    message=qualification_risk.message,
                     source_kind="notice",
                 )
             )
-        for risk in package_intelligence.risks:
+        for package_risk in package_intelligence.risks:
             risks.append(
                 DossierRisk(
-                    key=f"package:{risk.key}",
-                    severity=risk.severity,
-                    message=risk.message,
+                    key=f"package:{package_risk.key}",
+                    severity=package_risk.severity,
+                    message=package_risk.message,
                     source_kind="procurement_document",
                 )
             )
@@ -385,22 +388,26 @@ class DecisionDossierService:
                 )
             )
 
-        hard_gates = [item for item in checklist if item.hard_gate]
+        hard_gates = [
+            checklist_item
+            for checklist_item in checklist
+            if checklist_item.hard_gate
+        ]
         hard_gates_verified = sum(
-            item.manual_status == "verified"
-            for item in hard_gates
+            checklist_item.manual_status == "verified"
+            for checklist_item in hard_gates
         )
         verified_count = sum(
-            item.manual_status == "verified"
-            for item in checklist
+            checklist_item.manual_status == "verified"
+            for checklist_item in checklist
         )
         needs_evidence_count = sum(
-            item.manual_status == "needs_evidence"
-            for item in checklist
+            checklist_item.manual_status == "needs_evidence"
+            for checklist_item in checklist
         )
         unreviewed_count = sum(
-            item.manual_status == "unreviewed"
-            for item in checklist
+            checklist_item.manual_status == "unreviewed"
+            for checklist_item in checklist
         )
         summary = DossierEvidenceSummary(
             requirement_count=len(checklist),
@@ -412,23 +419,23 @@ class DecisionDossierService:
         )
 
         unresolved_hard_gates = [
-            item
-            for item in hard_gates
-            if item.manual_status != "verified"
+            hard_gate
+            for hard_gate in hard_gates
+            if hard_gate.manual_status != "verified"
         ]
         unresolved_explicit = [
-            item
-            for item in checklist
+            checklist_item
+            for checklist_item in checklist
             if (
-                item.evidence_strength == "explicit"
-                and item.manual_status
+                checklist_item.evidence_strength == "explicit"
+                and checklist_item.manual_status
                 not in {"verified", "not_applicable"}
             )
         ]
         verified_keys = {
-            item.key
-            for item in checklist
-            if item.manual_status == "verified"
+            checklist_item.key
+            for checklist_item in checklist
+            if checklist_item.manual_status == "verified"
         }
 
         def high_risk_blocks(risk: DossierRisk) -> bool:
@@ -489,12 +496,16 @@ class DecisionDossierService:
             actions.append(
                 "Review restricted, unsupported, or unread procurement documents manually."
             )
-        for item in unresolved_hard_gates[:3]:
+        for hard_gate in unresolved_hard_gates[:3]:
             actions.append(
-                f"Verify documentary evidence for potential hard gate: {item.label}."
+                "Verify documentary evidence for potential hard gate: "
+                f"{hard_gate.label}."
             )
-        for item in unresolved_explicit[:3]:
-            action = f"Review explicit requirement: {item.label}."
+        for explicit_requirement in unresolved_explicit[:3]:
+            action = (
+                "Review explicit requirement: "
+                f"{explicit_requirement.label}."
+            )
             if action not in actions:
                 actions.append(action)
         if deadline_status == "urgent":
@@ -514,7 +525,6 @@ class DecisionDossierService:
             if action not in deduped_actions:
                 deduped_actions.append(action)
 
-        snapshot = opportunity.snapshot
         return BidNoBidDossier(
             account_id=account_id,
             publication_number=publication_number,
