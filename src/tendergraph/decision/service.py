@@ -11,8 +11,10 @@ from tendergraph.decision.models import (
     DecisionReviewUpdate,
     DossierChecklistItem,
     DossierEvidenceSummary,
+    DeadlineReadiness,
+    DecisionReadiness,
     DossierRisk,
-    EvidenceReviewStatus,
+    StrategicFitStatus,
 )
 from tendergraph.decision.repository import DecisionReviewRepository
 from tendergraph.documents.service import DocumentService
@@ -52,11 +54,12 @@ def _strategic_fit(
     preferred_min_value: Decimal | None,
     preferred_max_value: Decimal | None,
     preferred_currency: str,
-) -> tuple[str, list[str], list[DossierRisk]]:
+) -> tuple[StrategicFitStatus, list[str], list[DossierRisk]]:
     score = opportunity.match_score
     reasons: list[str] = []
     risks: list[DossierRisk] = []
 
+    status: StrategicFitStatus
     if score is None:
         status = "unknown"
         reasons.append("No stored company-fit score is available for this saved tender.")
@@ -153,7 +156,7 @@ def _deadline_readiness(
     *,
     minimum_days: int,
     now: datetime,
-) -> tuple[str, int | None, DossierRisk | None]:
+) -> tuple[DeadlineReadiness, int | None, DossierRisk | None]:
     if deadline is None:
         return (
             "unknown",
@@ -437,6 +440,7 @@ class DecisionDossierService:
                 return requirement_key not in verified_keys
             return True
 
+        readiness: DecisionReadiness
         if opportunity.pipeline_stage == "no_bid":
             readiness = "user_no_bid"
             message = (
@@ -521,9 +525,9 @@ class DecisionDossierService:
             pipeline_stage=opportunity.pipeline_stage or "reviewing",
             pipeline_note=opportunity.note,
             match_score=opportunity.match_score,
-            strategic_fit=strategic_fit,  # type: ignore[arg-type]
+            strategic_fit=strategic_fit,
             strategic_fit_reasons=strategic_reasons,
-            deadline_readiness=deadline_status,  # type: ignore[arg-type]
+            deadline_readiness=deadline_status,
             days_to_deadline=days_to_deadline,
             notice_review_status=qualification.review_status,
             notice_risk_level=qualification.risk_level,
@@ -532,7 +536,7 @@ class DecisionDossierService:
             checklist=checklist,
             risks=risks,
             evidence_summary=summary,
-            review_readiness=readiness,  # type: ignore[arg-type]
+            review_readiness=readiness,
             review_message=message,
             reviewer_note=review.reviewer_note if review is not None else "",
             next_actions=deduped_actions[:10],
