@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from psycopg_pool import ConnectionPool
 
 from tendergraph.documents.models import (
+    DocumentProvenanceChunk,
     ProcurementDocumentReference,
     StoredProcurementDocument,
     TenderDocumentPackage,
@@ -35,8 +36,14 @@ class DocumentRepository:
     def __init__(self, pool: ConnectionPool) -> None:
         self._pool = pool
 
-    def get_notice_source(self, publication_number: str) -> NoticeDocumentSource | None:
-        with self._pool.connection() as connection, connection.cursor() as cursor:
+    def get_notice_source(
+        self,
+        publication_number: str,
+    ) -> NoticeDocumentSource | None:
+        with (
+            self._pool.connection() as connection,
+            connection.cursor() as cursor,
+        ):
             cursor.execute(
                 """
                 SELECT publication_number, title, source_xml_url
@@ -89,7 +96,10 @@ class DocumentRepository:
                 },
             )
             connection.execute(
-                "DELETE FROM documents.assets WHERE publication_number = %(publication_number)s;",
+                """
+                DELETE FROM documents.assets
+                WHERE publication_number = %(publication_number)s;
+                """,
                 {"publication_number": source.publication_number},
             )
             for reference in references:
@@ -97,8 +107,8 @@ class DocumentRepository:
                     """
                     INSERT INTO documents.assets (
                         publication_number, document_id, source_url, restricted,
-                        restriction_code, official_languages, unofficial_languages,
-                        status
+                        restriction_code, official_languages,
+                        unofficial_languages, status
                     ) VALUES (
                         %(publication_number)s, %(document_id)s, %(source_url)s,
                         %(restricted)s, %(restriction_code)s,
@@ -114,7 +124,11 @@ class DocumentRepository:
                         "restriction_code": reference.restriction_code,
                         "official_languages": reference.official_languages,
                         "unofficial_languages": reference.unofficial_languages,
-                        "status": "restricted" if reference.restricted else "discovered",
+                        "status": (
+                            "restricted"
+                            if reference.restricted
+                            else "discovered"
+                        ),
                     },
                 )
 
@@ -165,6 +179,51 @@ class DocumentRepository:
                 },
             )
 
+    def replace_chunks(
+        self,
+        publication_number: str,
+        document_id: str,
+        chunks: list[DocumentProvenanceChunk],
+    ) -> None:
+        with self._pool.connection() as connection:
+            connection.execute(
+                """
+                DELETE FROM documents.chunks
+                WHERE publication_number = %(publication_number)s
+                  AND document_id = %(document_id)s;
+                """,
+                {
+                    "publication_number": publication_number,
+                    "document_id": document_id,
+                },
+            )
+            for chunk in chunks:
+                connection.execute(
+                    """
+                    INSERT INTO documents.chunks (
+                        publication_number, document_id, chunk_id,
+                        chunk_index, page_number, section_title, text,
+                        character_count, checksum
+                    ) VALUES (
+                        %(publication_number)s, %(document_id)s,
+                        %(chunk_id)s, %(chunk_index)s, %(page_number)s,
+                        %(section_title)s, %(text)s, %(character_count)s,
+                        %(checksum)s
+                    );
+                    """,
+                    {
+                        "publication_number": publication_number,
+                        "document_id": document_id,
+                        "chunk_id": chunk.chunk_id,
+                        "chunk_index": chunk.chunk_index,
+                        "page_number": chunk.page_number,
+                        "section_title": chunk.section_title,
+                        "text": chunk.text,
+                        "character_count": chunk.character_count,
+                        "checksum": chunk.checksum,
+                    },
+                )
+
     def set_package_status(
         self,
         publication_number: str,
@@ -181,11 +240,21 @@ class DocumentRepository:
                     updated_at = CURRENT_TIMESTAMP
                 WHERE publication_number = %(publication_number)s;
                 """,
-                {"status": status, "error": error, "publication_number": publication_number},
+                {
+                    "status": status,
+                    "error": error,
+                    "publication_number": publication_number,
+                },
             )
 
-    def get_package(self, publication_number: str) -> TenderDocumentPackage | None:
-        with self._pool.connection() as connection, connection.cursor() as cursor:
+    def get_package(
+        self,
+        publication_number: str,
+    ) -> TenderDocumentPackage | None:
+        with (
+            self._pool.connection() as connection,
+            connection.cursor() as cursor,
+        ):
             cursor.execute(
                 """
                 SELECT title, source_xml_url, package_status, discovered_at,
@@ -198,16 +267,41 @@ class DocumentRepository:
             package_row = cursor.fetchone()
             if package_row is None:
                 return None
+
             cursor.execute(
                 """
-                SELECT document_id, source_url, restricted, restriction_code,
-                       official_languages, unofficial_languages, status, final_url,
-                       content_type, byte_count, sha256, cache_path,
-                       extraction_method, COALESCE(length(extracted_text), 0),
-                       error, updated_at
-                FROM documents.assets
-                WHERE publication_number = %(publication_number)s
-                ORDER BY document_id;
+                SELECT
+                    asset.document_id,
+                    asset.source_url,
+                    asset.restricted,
+                    asset.restriction_code,
+                    asset.official_languages,
+                    asset.unofficial_languages,
+                    asset.status,
+                    asset.final_url,
+                    asset.content_type,
+                    asset.byte_count,
+                    asset.sha256,
+                    asset.cache_path,
+                    asset.extraction_method,
+                    COALESCE(length(asset.extracted_text), 0),
+                    asset.error,
+                    asset.updated_at,
+                    COALESCE((
+                        SELECT COUNT(*)
+                        FROM documents.chunks AS chunk
+                        WHERE chunk.publication_number = asset.publication_number
+                          AND chunk.document_id = asset.document_id
+                    ), 0),
+                    (
+                        SELECT MAX(chunk.page_number)
+                        FROM documents.chunks AS chunk
+                        WHERE chunk.publication_number = asset.publication_number
+                          AND chunk.document_id = asset.document_id
+                    )
+                FROM documents.assets AS asset
+                WHERE asset.publication_number = %(publication_number)s
+                ORDER BY asset.document_id;
                 """,
                 {"publication_number": publication_number},
             )
@@ -215,12 +309,24 @@ class DocumentRepository:
 
         documents = [
             StoredProcurementDocument(
-                document_id=row[0], source_url=row[1], restricted=row[2],
-                restriction_code=row[3], official_languages=list(row[4] or []),
-                unofficial_languages=list(row[5] or []), status=row[6],
-                final_url=row[7], content_type=row[8], byte_count=row[9],
-                sha256=row[10], cache_path=row[11], extraction_method=row[12],
-                extracted_characters=row[13], error=row[14], updated_at=row[15],
+                document_id=row[0],
+                source_url=row[1],
+                restricted=row[2],
+                restriction_code=row[3],
+                official_languages=list(row[4] or []),
+                unofficial_languages=list(row[5] or []),
+                status=row[6],
+                final_url=row[7],
+                content_type=row[8],
+                byte_count=row[9],
+                sha256=row[10],
+                cache_path=row[11],
+                extraction_method=row[12],
+                extracted_characters=row[13],
+                error=row[14],
+                updated_at=row[15],
+                chunk_count=row[16],
+                page_count=row[17],
             )
             for row in rows
         ]
@@ -230,15 +336,32 @@ class DocumentRepository:
             source_xml_url=package_row[1],
             package_status=package_row[2],
             documents=documents,
-            extracted_document_count=sum(item.status == "extracted" for item in documents),
-            restricted_document_count=sum(item.restricted for item in documents),
-            failed_document_count=sum(item.status in {"failed", "access_denied"} for item in documents),
-            discovered_at=package_row[3], updated_at=package_row[4], error=package_row[5],
+            extracted_document_count=sum(
+                item.status == "extracted"
+                for item in documents
+            ),
+            restricted_document_count=sum(
+                item.restricted
+                for item in documents
+            ),
+            failed_document_count=sum(
+                item.status in {"failed", "access_denied"}
+                for item in documents
+            ),
+            discovered_at=package_row[3],
+            updated_at=package_row[4],
+            error=package_row[5],
             disclaimer=PACKAGE_DISCLAIMER,
         )
 
-    def extracted_texts(self, publication_number: str) -> list[ExtractedDocumentText]:
-        with self._pool.connection() as connection, connection.cursor() as cursor:
+    def extracted_texts(
+        self,
+        publication_number: str,
+    ) -> list[ExtractedDocumentText]:
+        with (
+            self._pool.connection() as connection,
+            connection.cursor() as cursor,
+        ):
             cursor.execute(
                 """
                 SELECT document_id, source_url, extracted_text
@@ -252,4 +375,53 @@ class DocumentRepository:
                 {"publication_number": publication_number},
             )
             rows = cursor.fetchall()
-        return [ExtractedDocumentText(row[0], row[1], row[2]) for row in rows]
+        return [
+            ExtractedDocumentText(row[0], row[1], row[2])
+            for row in rows
+        ]
+
+    def provenance_chunks(
+        self,
+        publication_number: str,
+    ) -> list[DocumentProvenanceChunk]:
+        with (
+            self._pool.connection() as connection,
+            connection.cursor() as cursor,
+        ):
+            cursor.execute(
+                """
+                SELECT
+                    chunk.document_id,
+                    asset.source_url,
+                    chunk.chunk_id,
+                    chunk.chunk_index,
+                    chunk.page_number,
+                    chunk.section_title,
+                    chunk.text,
+                    chunk.character_count,
+                    chunk.checksum
+                FROM documents.chunks AS chunk
+                JOIN documents.assets AS asset
+                  ON asset.publication_number = chunk.publication_number
+                 AND asset.document_id = chunk.document_id
+                WHERE chunk.publication_number = %(publication_number)s
+                ORDER BY chunk.document_id, chunk.chunk_index;
+                """,
+                {"publication_number": publication_number},
+            )
+            rows = cursor.fetchall()
+
+        return [
+            DocumentProvenanceChunk(
+                document_id=row[0],
+                source_url=row[1],
+                chunk_id=row[2],
+                chunk_index=row[3],
+                page_number=row[4],
+                section_title=row[5],
+                text=row[6],
+                character_count=row[7],
+                checksum=row[8],
+            )
+            for row in rows
+        ]
