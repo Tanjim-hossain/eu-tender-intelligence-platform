@@ -160,46 +160,45 @@ def buyer_history(
 ) -> BuyerHistory | None:
     params = {"publication": publication, "days": days, "limit": limit,
               "award_types": list(AWARD_TYPES)}
-    with pool.connection() as connection:
-        with connection.transaction():
-            connection.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ")
-            anchor = connection.execute(
-                """
-                SELECT buyer_name, first_buyer_country, publication_date - CAST(%(days)s AS integer),
-                       publication_date
-                FROM silver.tenders WHERE publication_number = %(publication)s
-                """, params,
-            ).fetchone()
-            if anchor is None:
-                return None
-            counts = connection.execute(
-                MATCHED + """
-                SELECT count(*), count(*) FILTER (WHERE notice_type = ANY(%(award_types)s))
-                FROM matched
-                """, params,
-            ).fetchone()
-            assert counts is not None
-            values = connection.execute(
-                MATCHED + """
-                SELECT estimated_value_currency, count(*),
-                       percentile_disc(0.5) WITHIN GROUP (ORDER BY estimated_value)
-                FROM matched
-                WHERE estimated_value IS NOT NULL AND estimated_value_currency IS NOT NULL
-                GROUP BY estimated_value_currency ORDER BY estimated_value_currency
-                """, params,
-            ).fetchall()
-            rows = connection.execute(
-                MATCHED + """
-                SELECT m.publication_number, m.publication_date, m.notice_type, m.title,
-                       m.estimated_value, m.estimated_value_currency, m.source_html_url,
-                       e.publication_number IS NOT NULL, e.winners, e.source_url, e.sha256
-                FROM matched AS m
-                LEFT JOIN history.award_evidence AS e
-                  ON m.publication_number = e.publication_number
-                 AND m.ingestion_run_id = e.source_revision
-                ORDER BY m.publication_date DESC, m.publication_number DESC LIMIT %(limit)s
-                """, params,
-            ).fetchall()
+    with pool.connection() as connection, connection.transaction():
+        connection.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ")
+        anchor = connection.execute(
+            """
+            SELECT buyer_name, first_buyer_country, publication_date - CAST(%(days)s AS integer),
+                   publication_date
+            FROM silver.tenders WHERE publication_number = %(publication)s
+            """, params,
+        ).fetchone()
+        if anchor is None:
+            return None
+        counts = connection.execute(
+            MATCHED + """
+            SELECT count(*), count(*) FILTER (WHERE notice_type = ANY(%(award_types)s))
+            FROM matched
+            """, params,
+        ).fetchone()
+        assert counts is not None
+        values = connection.execute(
+            MATCHED + """
+            SELECT estimated_value_currency, count(*),
+                   percentile_disc(0.5) WITHIN GROUP (ORDER BY estimated_value)
+            FROM matched
+            WHERE estimated_value IS NOT NULL AND estimated_value_currency IS NOT NULL
+            GROUP BY estimated_value_currency ORDER BY estimated_value_currency
+            """, params,
+        ).fetchall()
+        rows = connection.execute(
+            MATCHED + """
+            SELECT m.publication_number, m.publication_date, m.notice_type, m.title,
+                   m.estimated_value, m.estimated_value_currency, m.source_html_url,
+                   e.publication_number IS NOT NULL, e.winners, e.source_url, e.sha256
+            FROM matched AS m
+            LEFT JOIN history.award_evidence AS e
+              ON m.publication_number = e.publication_number
+             AND m.ingestion_run_id = e.source_revision
+            ORDER BY m.publication_date DESC, m.publication_number DESC LIMIT %(limit)s
+            """, params,
+        ).fetchall()
     return BuyerHistory(
         publication_number=publication, buyer_name=anchor[0], buyer_country=anchor[1],
         window_start=anchor[2], window_end_exclusive=anchor[3],

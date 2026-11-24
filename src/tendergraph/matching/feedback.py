@@ -39,10 +39,11 @@ def rerank_matches(
         if adjustment:
             field = "why_matches" if adjustment > 0 else "risks"
             reasons = match.why_matches if adjustment > 0 else match.risks
-            match = match.model_copy(update={
-                field: [*reasons, "Ranking adjusted using your saved/no-bid buyer history "
-                        f"({adjustment:+d} ranking points; fit unchanged)."],
-            })
+            message = (
+                "Ranking adjusted using your saved/no-bid buyer history "
+                f"({adjustment:+d} ranking points; fit unchanged)."
+            )
+            match = match.model_copy(update={field: [*reasons, message]})
         ranked.append((match.match_score + adjustment, match))
     ranked.sort(key=lambda pair: (-pair[0], -pair[1].rrf_score, pair[1].publication_number))
     selected = [match for _, match in ranked[:limit]]

@@ -9,8 +9,16 @@ from psycopg.types.json import Jsonb
 
 from tendergraph.database.config import DatabaseSettings
 from tendergraph.database.pool import create_connection_pool
-from tendergraph.documents.fetcher import DocumentFetchError, SafeDocumentFetcher, UnsafeDocumentUrlError
-from tendergraph.history import AWARD_TYPES, ensure_history_schema, extract_award_suppliers
+from tendergraph.documents.fetcher import (
+    DocumentFetchError,
+    SafeDocumentFetcher,
+    UnsafeDocumentUrlError,
+)
+from tendergraph.history import (
+    AWARD_TYPES,
+    ensure_history_schema,
+    extract_award_suppliers,
+)
 
 
 def main() -> None:
