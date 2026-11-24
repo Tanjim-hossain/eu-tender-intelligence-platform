@@ -39,11 +39,14 @@ from tendergraph.database.pool import (
 )
 from tendergraph.decision.router import router as decision_router
 from tendergraph.documents.router import router as documents_router
+from tendergraph.history import router as history_router
+from tendergraph.matching.feedback import rerank_matches
 from tendergraph.matching.models import CompanyMatchResult
 from tendergraph.matching.service import CompanyMatchingService
 from tendergraph.pipeline.status import (
     read_operational_status,
 )
+from tendergraph.product.router import _authorize_account, _repository
 from tendergraph.product.router import router as product_router
 from tendergraph.qualification.router import router as qualification_router
 from tendergraph.rag.errors import GenerationUnavailable, InvalidGeneratedAnswer
@@ -123,6 +126,7 @@ def create_app(
     application.include_router(decision_router)
     application.include_router(qualification_router)
     application.include_router(documents_router)
+    application.include_router(history_router)
 
     web_dir = Path(__file__).parent / "web"
     application.mount("/assets", StaticFiles(directory=web_dir), name="assets")
@@ -258,11 +262,23 @@ def create_app(
             request.app.state.matching_service,
         )
         try:
-            return service.match(
-                payload.profile,
-                limit=payload.limit,
+            if payload.account_id is None:
+                return service.match(
+                    payload.profile, limit=payload.limit,
+                    retrieval_depth=payload.retrieval_depth,
+                )
+            repository = _repository(request)
+            _authorize_account(
+                request=request, repository=repository, account_id=payload.account_id,
+            )
+            state = repository.get_state(payload.account_id)
+            if state is None:
+                raise HTTPException(status_code=404, detail="Product account not found")
+            candidates = service.match(
+                payload.profile, limit=min(50, payload.retrieval_depth),
                 retrieval_depth=payload.retrieval_depth,
             )
+            return rerank_matches(candidates, state.opportunities, limit=payload.limit)
         except (OperationalError, PoolTimeout) as exc:
             raise HTTPException(
                 status_code=503,

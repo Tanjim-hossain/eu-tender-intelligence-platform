@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Literal, Self
+from uuid import UUID
 
 from pydantic import (
     BaseModel,
@@ -94,6 +95,7 @@ class CompanyMatchRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     profile: CompanyProfile
+    account_id: UUID | None = None
     limit: int = Field(default=10, ge=1, le=50)
     retrieval_depth: int = Field(default=50, ge=1, le=100)
 
