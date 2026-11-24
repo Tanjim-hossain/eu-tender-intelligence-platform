@@ -65,7 +65,7 @@ def _set_session_cookie(
         max_age=int(SESSION_TTL.total_seconds()),
         expires=expires_at,
         path="/",
-        secure=request.url.scheme == "https",
+        secure=request.url.scheme == "https" or bool(getattr(request.app.state, "public_mode", False)),
         httponly=True,
         samesite="lax",
     )
@@ -92,6 +92,8 @@ def register(
     request: Request,
     response: Response,
 ) -> AuthStatusResponse:
+    if getattr(request.app.state, "public_mode", False) and payload.local_account_id is not None:
+        raise HTTPException(status_code=403, detail="Local account migration is disabled in public mode")
     repository = auth_repository(request)
     try:
         account = repository.register_account(

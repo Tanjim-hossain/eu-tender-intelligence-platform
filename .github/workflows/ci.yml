@@ -50,6 +50,8 @@ jobs:
           node --check src/tendergraph/api/web/auth.js
           node --check src/tendergraph/api/web/qualification.js
           node --check src/tendergraph/api/web/decision.js
+          node --check src/tendergraph/api/web/history.js
+          node --check src/tendergraph/api/web/app.js
           node --check src/tendergraph/api/web/alerts.js
 
       - name: Check scheduled refresh shell syntax
@@ -145,6 +147,7 @@ jobs:
           assert c.get('/assets/auth.css').status_code == 200;
           assert c.get('/assets/qualification.js').status_code == 200;
           assert c.get('/assets/decision.js').status_code == 200;
+          assert c.get('/assets/history.js').status_code == 200;
           assert c.get('/assets/decision.css').status_code == 200;
           assert c.get('/assets/alerts.js').status_code == 200;
           assert c.get('/assets/alerts.css').status_code == 200;

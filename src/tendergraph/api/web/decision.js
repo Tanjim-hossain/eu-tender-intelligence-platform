@@ -32,6 +32,12 @@
     not_applicable: "Not applicable"
   }[value] || value);
 
+  const safeSource = raw => {
+    try {
+      const url = new URL(raw);
+      return ["http:", "https:"].includes(url.protocol) && !url.username && !url.password ? url.href : null;
+    } catch { return null; }
+  };
   const sourceLabel = (item) => {
     const parts = [];
     if (item.source_kind === "procurement_document") parts.push("Procurement document");
@@ -113,9 +119,10 @@
       const evidence = make("p", item.evidence, "decision-evidence");
       row.append(top, source, evidence);
 
-      if (item.source_url) {
+      const sourceUrl = safeSource(item.source_url);
+      if (sourceUrl) {
         const link = make("a", "Open evidence source ↗", "decision-source-link");
-        link.href = item.source_url;
+        link.href = sourceUrl;
         link.target = "_blank";
         link.rel = "noopener noreferrer";
         row.append(link);
@@ -177,6 +184,30 @@
     panel.append(save);
   };
 
+  const exportReview = data => {
+    const lines = [
+      "TenderGraph | Bid / No-bid decision dossier", new Date().toISOString(),
+      `${data.publication_number} | ${data.title}`,
+      `Buyer: ${data.buyer_name || "Not stated"} (${data.buyer_country})`,
+      `Source: ${data.source_html_url}`,
+      `Readiness: ${readinessLabel(data.review_readiness)}`,
+      `Stored fit: ${data.match_score ?? "Unknown"} | deadline: ${data.deadline_readiness} | document coverage: ${data.document_coverage}`,
+      `Pipeline: ${data.pipeline_stage} | ${data.pipeline_note}`,
+      `Reviewer note: ${data.reviewer_note}`, "", "Evidence checklist (last saved review)",
+      ...data.checklist.flatMap(item => [
+        `- ${item.label} | ${item.manual_status} | ${item.hard_gate ? "potential hard gate" : item.evidence_strength}`,
+        `  ${sourceLabel(item)} | ${item.source_url || ""}`,
+        `  Evidence: ${item.evidence}`, `  Review note: ${item.manual_note}`
+      ]), "", "Risks", ...data.risks.map(item => `- ${item.severity}: ${item.message}`),
+      "", "Next actions", ...data.next_actions.map(item => `- ${item}`), "", data.disclaimer
+    ];
+    const url = URL.createObjectURL(new Blob([lines.join("\n")], {type:"text/plain;charset=utf-8"}));
+    const link = make("a");
+    link.href = url;
+    link.download = `TenderGraph-${data.publication_number.replace(/[^a-zA-Z0-9_-]/g, "_")}-review.txt`;
+    document.body.append(link); link.click(); link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
   const render = (panel, data, saveReview) => {
     panel.replaceChildren();
 
@@ -195,6 +226,9 @@
       )
     );
     panel.append(header, make("p", data.review_message, "decision-message"));
+    const exportButton = make("button", "Export last saved review (.txt)", "secondary");
+    exportButton.type = "button"; exportButton.addEventListener("click", () => exportReview(data));
+    panel.append(exportButton);
 
     const meta = make("div", null, "decision-meta");
     meta.append(

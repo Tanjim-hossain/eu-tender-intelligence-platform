@@ -3,6 +3,12 @@
   const container = document.getElementById("saved-results");
   if (!container) return;
 
+  const safeSource = raw => {
+    try {
+      const url = new URL(raw);
+      return ["http:", "https:"].includes(url.protocol) && !url.username && !url.password ? url.href : null;
+    } catch { return null; }
+  };
   const make = (tag, text, className) => {
     const node = document.createElement(tag);
     if (text != null) node.textContent = text;
@@ -48,9 +54,9 @@
       if (item.chunk_id) provenance.push(`Chunk ${item.chunk_id}`);
       if (provenance.length) top.append(make("span", provenance.join(" · "), "signal-pill explicit"));
       row.append(top, make("p", item.evidence, "qualification-evidence"));
-      if (item.source_url) {
+      if (safeSource(item.source_url)) {
         const source = make("a", "Open evidence source ↗", "package-link");
-        source.href = item.source_url;
+        source.href = safeSource(item.source_url);
         source.target = "_blank";
         source.rel = "noopener noreferrer";
         row.append(source);
@@ -155,7 +161,7 @@
         top.append(make("span", documentStatusLabel(item.status), `signal-pill ${item.status === "extracted" ? "explicit" : "mentioned"}`));
         if (item.restricted) top.append(make("span", "Controlled access", "signal-pill hard-gate"));
         const link = make("a", "Open buyer document ↗", "package-link");
-        link.href = item.source_url;
+        link.href = safeSource(item.source_url) || "#";
         link.target = "_blank";
         link.rel = "noopener noreferrer";
         row.append(top, link);

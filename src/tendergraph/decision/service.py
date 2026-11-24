@@ -317,7 +317,15 @@ class DecisionDossierService:
 
         for notice_requirement in qualification.requirements:
             if notice_requirement.key in checklist_by_key:
-                continue
+                existing = checklist_by_key[notice_requirement.key]
+                if (notice_requirement.hard_gate and not existing.hard_gate) or (
+                    notice_requirement.evidence_strength == "explicit"
+                    and existing.evidence_strength != "explicit"
+                ):
+                    # Do not discard stronger explicit notice evidence for a weaker mention.
+                    pass
+                else:
+                    continue
             manual = review_map.get(notice_requirement.key)
             checklist_by_key[notice_requirement.key] = DossierChecklistItem(
                 key=notice_requirement.key,
@@ -470,6 +478,7 @@ class DecisionDossierService:
             )
         elif (
             needs_evidence_count
+            or deadline_status == "unknown"
             or unresolved_explicit
             or package.package_status == "not_ingested"
             or package_intelligence.coverage != "substantive"

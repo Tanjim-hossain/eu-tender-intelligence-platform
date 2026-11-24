@@ -25,6 +25,7 @@
     return payload;
   };
 
+  let publicMode = false;
   const clearWorkspaceCache = () => {
     [ACCOUNT_KEY, PROFILE_KEY, SAVED_KEY, IGNORED_KEY, DIRTY_KEY].forEach((key) => localStorage.removeItem(key));
     sessionStorage.removeItem("tendergraph.persistenceReloaded");
@@ -53,6 +54,7 @@
       setMessage(dialog, "login", "Signing in…");
       try {
         const result = await request("/auth/login", {method:"POST",body:JSON.stringify({email:data.get("email"),password:data.get("password")})});
+        clearWorkspaceCache();
         localStorage.setItem(ACCOUNT_KEY, result.account.id);
         localStorage.removeItem(DIRTY_KEY);
         sessionStorage.removeItem("tendergraph.persistenceReloaded");
@@ -65,7 +67,8 @@
       if (data.get("password") !== data.get("confirm_password")) { setMessage(dialog, "register", "Passwords do not match.", true); return; }
       setMessage(dialog, "register", "Creating account…");
       try {
-        const result = await request("/auth/register", {method:"POST",body:JSON.stringify({email:data.get("email"),password:data.get("password"),display_name:data.get("display_name") || null,local_account_id:localStorage.getItem(ACCOUNT_KEY) || null})});
+        const result = await request("/auth/register", {method:"POST",body:JSON.stringify({email:data.get("email"),password:data.get("password"),display_name:data.get("display_name") || null,local_account_id:publicMode ? null : (localStorage.getItem(ACCOUNT_KEY) || null)})});
+        if (publicMode) clearWorkspaceCache();
         localStorage.setItem(ACCOUNT_KEY, result.account.id);
         sessionStorage.removeItem("tendergraph.persistenceReloaded");
         location.reload();
@@ -79,6 +82,7 @@
     const slot = document.createElement("div");
     slot.className = "auth-slot";
     topbar.appendChild(slot);
+    try { publicMode = Boolean((await request("/config")).public_mode); } catch {}
     let status = {authenticated:false};
     try { status = await request("/auth/me"); } catch (error) { console.warn("TenderGraph auth status unavailable", error); }
     if (status.authenticated && status.account) {
@@ -86,13 +90,14 @@
       slot.innerHTML = `<span class="auth-identity"></span><button type="button" class="auth-signout">Sign out</button>`;
       slot.querySelector(".auth-identity").textContent = identity;
       slot.querySelector(".auth-signout").addEventListener("click", async () => {
-        try { await request("/auth/logout", {method:"POST",body:"{}"}); } catch (error) { console.warn("TenderGraph logout failed", error); }
+        try { await request("/auth/logout", {method:"POST",body:"{}"}); } catch (error) { window.alert("Sign out failed; retry before leaving this device."); return; }
         clearWorkspaceCache();
         location.reload();
       });
       return;
     }
     const dialog = buildDialog();
+    if (publicMode) { dialog.querySelector(".auth-copy").textContent = "Create a registered workspace."; dialog.querySelector(".auth-footnote").textContent = "Use a unique password. Verify tender evidence before making decisions."; }
     attachForms(dialog);
     const button = document.createElement("button");
     button.type = "button";

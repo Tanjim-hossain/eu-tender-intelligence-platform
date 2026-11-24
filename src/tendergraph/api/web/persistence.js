@@ -38,7 +38,9 @@
     if (response.status === 204) return null;
     return response.json();
   };
+  let publicMode = false;
   const createAccount = async () => {
+    if (publicMode) throw new Error("Sign in or register to persist your workspace");
     const account = await request("/product/accounts", {method:"POST"});
     accountId = account.id;
     rawSet(ACCOUNT_KEY, accountId);
@@ -123,7 +125,7 @@
     rawRemove(DIRTY_KEY);
   };
   const scheduleSync = () => {
-    if (hydrating) return;
+    if (hydrating || (publicMode && !accountId)) return;
     rawSet(DIRTY_KEY, "1");
     clearTimeout(syncTimer);
     syncTimer = setTimeout(() => syncNow().catch((error) => console.warn("TenderGraph persistence sync failed", error)), 250);
@@ -154,8 +156,10 @@
     } finally { hydrating = false; }
   };
   const bootstrap = async () => {
+    try { publicMode = Boolean((await request("/config")).public_mode); } catch {}
     const previousAccountId = accountId;
     const registered = await authenticatedAccount();
+    if (publicMode && !registered) { clearWorkspaceCache(); rawRemove(ACCOUNT_KEY); accountId = null; return; }
     const switchedAccount = Boolean(registered && previousAccountId && previousAccountId !== registered.id);
     if (registered) { accountId = registered.id; rawSet(ACCOUNT_KEY, accountId); }
     const hadLocalState = Boolean(localStorage.getItem(PROFILE_KEY) || localStorage.getItem(SAVED_KEY) || localStorage.getItem(IGNORED_KEY));

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from contextlib import ExitStack, asynccontextmanager
+from os import environ
 from pathlib import Path
 from typing import cast
 
@@ -30,6 +31,7 @@ from tendergraph.api.models import (
     SearchResponse,
     SearchResult,
 )
+from tendergraph.api.public_guard import install_public_guard, validate_origin
 from tendergraph.auth.router import router as auth_router
 from tendergraph.database.config import (
     DatabaseSettings,
@@ -67,6 +69,8 @@ async def lifespan(
     app: FastAPI,
 ) -> AsyncIterator[None]:
     rag_settings = RAGSettings()
+    if getattr(app.state, "public_mode", False) and rag_settings.provider != "evidence":
+        raise RuntimeError("Public preview requires evidence-only answer mode")
     settings = DatabaseSettings()
 
     pool = create_connection_pool(
@@ -104,7 +108,11 @@ async def lifespan(
 def create_app(
     *,
     use_lifespan: bool = True,
+    public_origin: str | None = None,
 ) -> FastAPI:
+    origin = public_origin if public_origin is not None else environ.get("TENDERGRAPH_PUBLIC_ORIGIN", "")
+    if origin:
+        origin = validate_origin(origin)
     application = FastAPI(
         title="EU TenderGraph API",
         description=(
@@ -113,12 +121,19 @@ def create_app(
             "procurement notices."
         ),
         version="0.1.0",
+        docs_url=None if origin else "/docs",
+        redoc_url=None if origin else "/redoc",
+        openapi_url=None if origin else "/openapi.json",
         lifespan=(
             lifespan
             if use_lifespan
             else None
         ),
     )
+
+    application.state.public_mode = bool(origin)
+    if origin:
+        application.middleware("http")(install_public_guard(origin))
 
     application.include_router(auth_router)
     application.include_router(product_router)
@@ -148,6 +163,7 @@ def create_app(
         if config is None:
             raise HTTPException(status_code=503, detail="Application not initialized")
         return {
+            "public_mode": bool(request.app.state.public_mode),
             "answer_mode": config.provider,
             "generation_model": config.model if config.provider != "evidence" else None,
             "reranking": config.rerank,

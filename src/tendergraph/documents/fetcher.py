@@ -33,14 +33,7 @@ class RawFetch:
 
 def _is_public_ip(value: str) -> bool:
     address = ipaddress.ip_address(value)
-    return not (
-        address.is_private
-        or address.is_loopback
-        or address.is_link_local
-        or address.is_multicast
-        or address.is_reserved
-        or address.is_unspecified
-    )
+    return address.is_global and not address.is_multicast
 
 
 def validate_public_http_url(url: str) -> None:
@@ -56,6 +49,9 @@ def validate_public_http_url(url: str) -> None:
         port = parsed.port or (443 if parsed.scheme == "https" else 80)
     except ValueError as exc:
         raise UnsafeDocumentUrlError("Document URL contains an invalid port") from exc
+
+    if port not in {80, 443}:
+        raise UnsafeDocumentUrlError("Only standard HTTP/HTTPS ports are allowed")
 
     try:
         addresses = socket.getaddrinfo(parsed.hostname, port)
@@ -92,6 +88,7 @@ class SafeDocumentFetcher:
             timeout=self._timeout,
             headers=self._headers,
             follow_redirects=False,
+            trust_env=False,
         ) as client:
             for _ in range(MAX_REDIRECTS + 1):
                 validate_public_http_url(current)
