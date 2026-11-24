@@ -27,6 +27,7 @@ def test_public_config_never_exposes_credentials_or_origin():
         response = client.get("/config")
     assert response.json() == {
         "answer_mode": "ollama", "generation_model": "fixture-local", "reranking": False,
+        "public_mode": False,
     }
     assert "private-test-key" not in response.text
     assert "11434" not in response.text
