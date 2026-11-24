@@ -2,11 +2,11 @@
 from __future__ import annotations
 
 from collections import deque
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from time import monotonic
 from urllib.parse import urlsplit
 
-from fastapi import Request
+from fastapi import HTTPException, Request
 from fastapi.responses import JSONResponse, Response
 from psycopg import OperationalError
 from psycopg_pool import PoolTimeout
@@ -62,7 +62,7 @@ def _signed_in(request: Request) -> bool:
     return session is not None and session.account.account_type == "registered"
 
 
-def install_public_guard(origin: str) -> Callable[..., object]:
+def install_public_guard(origin: str) -> Callable[[Request, RequestResponseEndpoint], Awaitable[Response]]:
     expected_host = urlsplit(origin).netloc.lower()
     budget = RequestBudget()
 
@@ -98,6 +98,8 @@ def install_public_guard(origin: str) -> Callable[..., object]:
             try:
                 if not await run_in_threadpool(_signed_in, request):
                     return JSONResponse({"detail": "Authentication required"}, status_code=401)
+            except HTTPException as exc:
+                return JSONResponse({"detail": exc.detail}, status_code=exc.status_code)
             except (OperationalError, PoolTimeout):
                 return JSONResponse({"detail": "Database unavailable"}, status_code=503)
         response = await call_next(request)

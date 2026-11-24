@@ -25,9 +25,11 @@ def main() -> None:
         with pool.connection() as connection:
             rows = connection.execute(
                 """
-                SELECT t.publication_number, t.source_xml_url
+                SELECT t.publication_number, t.source_xml_url, t.ingestion_run_id
                 FROM silver.tenders AS t
-                LEFT JOIN history.award_evidence AS e USING (publication_number)
+                LEFT JOIN history.award_evidence AS e
+                  ON t.publication_number = e.publication_number
+                 AND t.ingestion_run_id = e.source_revision
                 WHERE t.notice_type = ANY(%s) AND t.source_xml_url IS NOT NULL
                   AND (%s OR e.publication_number IS NULL)
                 ORDER BY t.publication_date DESC, t.publication_number
@@ -36,7 +38,7 @@ def main() -> None:
             ).fetchall()
         fetcher = SafeDocumentFetcher()
         indexed = failed = 0
-        for publication, url in rows:
+        for publication, url, revision in rows:
             try:
                 parsed = urlsplit(url)
                 if parsed.scheme != "https" or parsed.hostname not in {"ted.europa.eu", "data.europa.eu"}:
@@ -49,19 +51,25 @@ def main() -> None:
                     raise ValueError("Not a supported eForms award XML")
                 suppliers = extract_award_suppliers(fetched.content)
                 with pool.connection() as connection:
-                    connection.execute(
+                    saved = connection.execute(
                         """
                         INSERT INTO history.award_evidence
-                          (publication_number, source_url, sha256, winners)
-                        VALUES (%s, %s, %s, %s)
+                          (publication_number, source_url, sha256, source_revision, winners)
+                        SELECT %s, %s, %s, %s, %s
+                        WHERE EXISTS (SELECT 1 FROM silver.tenders
+                            WHERE publication_number = %s AND ingestion_run_id = %s)
                         ON CONFLICT (publication_number) DO UPDATE SET
                           source_url = EXCLUDED.source_url, sha256 = EXCLUDED.sha256,
-                          winners = EXCLUDED.winners, indexed_at = CURRENT_TIMESTAMP
+                          source_revision = EXCLUDED.source_revision, winners = EXCLUDED.winners, indexed_at = CURRENT_TIMESTAMP
                         """,
-                        (publication, fetched.final_url, fetched.sha256,
-                         Jsonb([s.model_dump(mode="json") for s in suppliers])),
+                        (publication, fetched.final_url, fetched.sha256, revision,
+                         Jsonb([s.model_dump(mode="json") for s in suppliers]), publication, revision),
                     )
-                indexed += 1
+                if saved.rowcount == 1:
+                    indexed += 1
+                else:
+                    failed += 1
+                    print(f"{publication}: source revision changed; rerun enrichment")
             except (DocumentFetchError, UnsafeDocumentUrlError, ET.ParseError, ValueError) as exc:
                 print(f"{publication}: not indexed ({type(exc).__name__})")
                 failed += 1

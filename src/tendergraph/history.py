@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS history.award_evidence (
         ON DELETE CASCADE,
     source_url TEXT NOT NULL,
     sha256 TEXT NOT NULL,
+    source_revision TEXT NOT NULL,
     winners JSONB NOT NULL,
     indexed_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 )
@@ -49,6 +50,8 @@ class HistoricalNotice(BaseModel):
     currency: str | None
     source_url: str
     award_evidence_indexed: bool
+    award_source_url: str | None = None
+    award_sha256: str | None = None
     suppliers: list[AwardSupplier]
 
 
@@ -146,7 +149,7 @@ WITH anchor AS (
     WHERE a.buyer_name IS NOT NULL AND btrim(a.buyer_name) <> ''
       AND lower(btrim(t.buyer_name)) = lower(btrim(a.buyer_name))
       AND t.first_buyer_country = a.first_buyer_country
-      AND t.publication_date >= a.publication_date - %(days)s
+      AND t.publication_date >= a.publication_date - CAST(%(days)s AS integer)
       AND t.publication_date < a.publication_date
 )
 """
@@ -162,7 +165,7 @@ def buyer_history(
             connection.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ")
             anchor = connection.execute(
                 """
-                SELECT buyer_name, first_buyer_country, publication_date - %(days)s,
+                SELECT buyer_name, first_buyer_country, publication_date - CAST(%(days)s AS integer),
                        publication_date
                 FROM silver.tenders WHERE publication_number = %(publication)s
                 """, params,
@@ -189,9 +192,11 @@ def buyer_history(
                 MATCHED + """
                 SELECT m.publication_number, m.publication_date, m.notice_type, m.title,
                        m.estimated_value, m.estimated_value_currency, m.source_html_url,
-                       e.publication_number IS NOT NULL, e.winners
+                       e.publication_number IS NOT NULL, e.winners, e.source_url, e.sha256
                 FROM matched AS m
-                LEFT JOIN history.award_evidence AS e USING (publication_number)
+                LEFT JOIN history.award_evidence AS e
+                  ON m.publication_number = e.publication_number
+                 AND m.ingestion_run_id = e.source_revision
                 ORDER BY m.publication_date DESC, m.publication_number DESC LIMIT %(limit)s
                 """, params,
             ).fetchall()
@@ -205,7 +210,7 @@ def buyer_history(
             HistoricalNotice(
                 publication_number=r[0], publication_date=r[1], notice_type=r[2],
                 title=r[3], estimated_value=r[4], currency=r[5], source_url=r[6],
-                award_evidence_indexed=r[7],
+                award_evidence_indexed=r[7], award_source_url=r[9], award_sha256=r[10],
                 suppliers=[AwardSupplier.model_validate(w) for w in (r[8] or [])],
             )
             for r in rows

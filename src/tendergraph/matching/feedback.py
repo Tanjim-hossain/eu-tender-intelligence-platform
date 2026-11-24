@@ -37,12 +37,11 @@ def rerank_matches(
         # Cap feedback influence at five points; never alter the reported fit.
         adjustment = max(-5, min(5, 2 * (positive[key] - negative[key])))
         if adjustment:
+            field = "why_matches" if adjustment > 0 else "risks"
+            reasons = match.why_matches if adjustment > 0 else match.risks
             match = match.model_copy(update={
-                "why_matches": [
-                    *match.why_matches,
-                    "Ranking adjusted using your saved/no-bid buyer history "
-                    f"({adjustment:+d} ranking points; fit unchanged).",
-                ],
+                field: [*reasons, "Ranking adjusted using your saved/no-bid buyer history "
+                        f"({adjustment:+d} ranking points; fit unchanged)."],
             })
         ranked.append((match.match_score + adjustment, match))
     ranked.sort(key=lambda pair: (-pair[0], -pair[1].rrf_score, pair[1].publication_number))

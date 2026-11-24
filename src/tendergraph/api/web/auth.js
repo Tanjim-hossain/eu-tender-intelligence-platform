@@ -27,7 +27,8 @@
 
   let publicMode = false;
   const clearWorkspaceCache = () => {
-    [ACCOUNT_KEY, PROFILE_KEY, SAVED_KEY, IGNORED_KEY, DIRTY_KEY].forEach((key) => localStorage.removeItem(key));
+    window.dispatchEvent(new Event("tendergraph:auth-transition"));
+    [ACCOUNT_KEY, PROFILE_KEY, SAVED_KEY, IGNORED_KEY, DIRTY_KEY, "tendergraph.persistenceBaseline.v1"].forEach((key) => localStorage.removeItem(key));
     sessionStorage.removeItem("tendergraph.persistenceReloaded");
   };
 
@@ -69,6 +70,7 @@
       try {
         const result = await request("/auth/register", {method:"POST",body:JSON.stringify({email:data.get("email"),password:data.get("password"),display_name:data.get("display_name") || null,local_account_id:publicMode ? null : (localStorage.getItem(ACCOUNT_KEY) || null)})});
         if (publicMode) clearWorkspaceCache();
+        else window.dispatchEvent(new Event("tendergraph:auth-transition"));
         localStorage.setItem(ACCOUNT_KEY, result.account.id);
         sessionStorage.removeItem("tendergraph.persistenceReloaded");
         location.reload();

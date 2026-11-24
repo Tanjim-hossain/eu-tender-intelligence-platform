@@ -11,6 +11,9 @@
   let accountId = localStorage.getItem(ACCOUNT_KEY);
   let syncTimer = null;
   let hydrating = false;
+  let transitioning = false;
+  const BASELINE_KEY = "tendergraph.persistenceBaseline.v1";
+  let syncChain = Promise.resolve();
 
   const parse = (key, fallback) => {
     try {
@@ -22,7 +25,7 @@
   };
   const rawSet = (key, value) => nativeSetItem.call(localStorage, key, value);
   const rawRemove = (key) => nativeRemoveItem.call(localStorage, key);
-  const clearWorkspaceCache = () => [PROFILE_KEY, SAVED_KEY, IGNORED_KEY, DIRTY_KEY].forEach(rawRemove);
+  const clearWorkspaceCache = () => [PROFILE_KEY, SAVED_KEY, IGNORED_KEY, DIRTY_KEY, BASELINE_KEY].forEach(rawRemove);
   const request = async (path, options = {}) => {
     const response = await fetch(path, {
       credentials: "same-origin",
@@ -102,33 +105,53 @@
     }
     return desired;
   };
+  const baselineOf = (id) => ({accountId:id, profile:parse(PROFILE_KEY, null), opportunities:Object.fromEntries(desiredOpportunityState())});
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   const syncNow = async () => {
-    if (hydrating) return;
+    if (hydrating || transitioning) return;
     const id = await ensureAccount();
     const state = await request(`/product/accounts/${id}/state`);
-    const profile = parse(PROFILE_KEY, null);
-    if (profile && typeof profile === "object") {
-      await request(`/product/accounts/${id}/profile`, {method:"PUT",body:JSON.stringify(profile)});
-    } else if (state.profile) {
-      await request(`/product/accounts/${id}/profile`, {method:"DELETE"});
+    const active = () => !transitioning && accountId === id && localStorage.getItem(ACCOUNT_KEY) === id;
+    if (!active()) return;
+    const desired = baselineOf(id);
+    const previous = parse(BASELINE_KEY, null);
+    const baseline = previous?.accountId === id ? previous : null;
+    if (!baseline || !same(desired.profile, baseline.profile)) {
+      if (desired.profile && typeof desired.profile === "object") {
+        await request(`/product/accounts/${id}/profile`, {method:"PUT",body:JSON.stringify(desired.profile)});
+      } else if (baseline?.profile && state.profile) {
+        await request(`/product/accounts/${id}/profile`, {method:"DELETE"});
+      }
     }
-    const desired = desiredOpportunityState();
-    for (const [publicationNumber, value] of desired) {
+    for (const [publicationNumber, value] of Object.entries(desired.opportunities)) {
+      if (!active()) return;
+      if (baseline && same(value, baseline.opportunities[publicationNumber])) continue;
       await request(`/product/accounts/${id}/opportunities/${encodeURIComponent(publicationNumber)}`, {method:"PUT",body:JSON.stringify(value)});
     }
-    const serverNumbers = new Set((state.opportunities || []).map((item) => item.publication_number));
-    for (const publicationNumber of serverNumbers) {
-      if (!desired.has(publicationNumber)) {
+    // Delete only items known at the previous successful sync.
+    for (const publicationNumber of Object.keys(baseline?.opportunities || {})) {
+      if (!active()) return;
+      if (!Object.hasOwn(desired.opportunities, publicationNumber)) {
         await request(`/product/accounts/${id}/opportunities/${encodeURIComponent(publicationNumber)}`, {method:"DELETE"});
       }
     }
-    rawRemove(DIRTY_KEY);
+    if (!active()) return;
+    rawSet(BASELINE_KEY, JSON.stringify(desired));
+    if (same(desired, baselineOf(id))) rawRemove(DIRTY_KEY);
   };
+  const queueSync = () => {
+    syncChain = syncChain.catch(() => {}).then(syncNow);
+    return syncChain;
+  };
+  window.addEventListener("tendergraph:auth-transition", () => {
+    transitioning = true;
+    clearTimeout(syncTimer);
+  });
   const scheduleSync = () => {
-    if (hydrating || (publicMode && !accountId)) return;
+    if (hydrating || transitioning || (publicMode && !accountId)) return;
     rawSet(DIRTY_KEY, "1");
     clearTimeout(syncTimer);
-    syncTimer = setTimeout(() => syncNow().catch((error) => console.warn("TenderGraph persistence sync failed", error)), 250);
+    syncTimer = setTimeout(() => queueSync().catch((error) => console.warn("TenderGraph persistence sync failed", error)), 250);
   };
   const hydrate = (state) => {
     hydrating = true;
@@ -152,6 +175,7 @@
       });
       rawSet(SAVED_KEY, JSON.stringify(saved));
       rawSet(IGNORED_KEY, JSON.stringify(ignored));
+      rawSet(BASELINE_KEY, JSON.stringify(baselineOf(accountId)));
       rawRemove(DIRTY_KEY);
     } finally { hydrating = false; }
   };
@@ -167,7 +191,7 @@
     const id = await ensureAccount();
     const state = await request(`/product/accounts/${id}/state`);
     const serverHasState = Boolean(state.profile || (state.opportunities || []).length);
-    if (!switchedAccount && (locallyDirty || (hadLocalState && !serverHasState))) { await syncNow(); return; }
+    if (!switchedAccount && (locallyDirty || (hadLocalState && !serverHasState))) { await queueSync(); return; }
     const before = [localStorage.getItem(PROFILE_KEY),localStorage.getItem(SAVED_KEY),localStorage.getItem(IGNORED_KEY)].join("|");
     hydrate(state);
     const after = [localStorage.getItem(PROFILE_KEY),localStorage.getItem(SAVED_KEY),localStorage.getItem(IGNORED_KEY)].join("|");
