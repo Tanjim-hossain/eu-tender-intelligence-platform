@@ -292,8 +292,8 @@ class DecisionDossierService:
 
         checklist_by_key: dict[str, DossierChecklistItem] = {}
 
-        # Procurement-document evidence wins over notice-only evidence for the
-        # same stable requirement key because it can carry page/section provenance.
+        # Prefer provenance-rich documents unless the notice carries stronger
+        # explicit or hard-gate evidence for the same requirement.
         for package_requirement in package_intelligence.requirements:
             manual = review_map.get(package_requirement.key)
             checklist_by_key[package_requirement.key] = DossierChecklistItem(
@@ -318,13 +318,15 @@ class DecisionDossierService:
         for notice_requirement in qualification.requirements:
             if notice_requirement.key in checklist_by_key:
                 existing = checklist_by_key[notice_requirement.key]
-                if (notice_requirement.hard_gate and not existing.hard_gate) or (
-                    notice_requirement.evidence_strength == "explicit"
-                    and existing.evidence_strength != "explicit"
-                ):
-                    # Do not discard stronger explicit notice evidence for a weaker mention.
-                    pass
-                else:
+                stronger_notice = (
+                    (notice_requirement.hard_gate and not existing.hard_gate)
+                    or (
+                        not existing.hard_gate
+                        and notice_requirement.evidence_strength == "explicit"
+                        and existing.evidence_strength != "explicit"
+                    )
+                )
+                if not stronger_notice:
                     continue
             manual = review_map.get(notice_requirement.key)
             checklist_by_key[notice_requirement.key] = DossierChecklistItem(

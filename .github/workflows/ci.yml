@@ -55,7 +55,10 @@ jobs:
           node --check src/tendergraph/api/web/alerts.js
 
       - name: Check scheduled refresh shell syntax
-        run: bash -n scripts/run_scheduled_refresh.sh
+        run: |
+          bash -n scripts/run_scheduled_refresh.sh
+          bash -n scripts/backup_database.sh
+          bash -n scripts/restore_database_check.sh
 
       - name: Verify distribution packaging
         run: make package
@@ -118,6 +121,10 @@ jobs:
       - name: Exercise qualification intelligence against PostgreSQL
         env: *postgres-env
         run: uv run --frozen python scripts/smoke_qualification.py
+
+      - name: Exercise historical procurement intelligence against PostgreSQL
+        env: *postgres-env
+        run: uv run --frozen python scripts/smoke_history.py
 
       - name: Exercise document package intelligence against PostgreSQL
         env: *postgres-env

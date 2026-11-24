@@ -218,13 +218,15 @@
     }
   };
 
+  const publicMode = fetch("/config").then(r => r.ok ? r.json() : {}).then(config => Boolean(config.public_mode)).catch(() => false);
   const loadPackage = async (button, panel, publication) => {
     button.disabled = true;
     button.textContent = "Ingesting official package…";
     panel.hidden = false;
     panel.replaceChildren(make("p", "Reading the official TED XML, fetching unrestricted document URLs safely, and extracting locally supported text…", "qualification-loading"));
     try {
-      const ingestResponse = await fetch(`/documents/${encodeURIComponent(publication)}/ingest`, {
+      const indexedOnly = await publicMode;
+      const ingestResponse = indexedOnly ? await fetch(`/documents/${encodeURIComponent(publication)}`) : await fetch(`/documents/${encodeURIComponent(publication)}/ingest`, {
         method: "POST",
         headers: {"Content-Type": "application/json"},
         body: JSON.stringify({fetch_documents: true, force: false})
@@ -240,7 +242,7 @@
         throw new Error(payload.detail || `Package intelligence failed (${intelligenceResponse.status})`);
       }
       renderPackage(panel, packageData, await intelligenceResponse.json());
-      button.textContent = "Refresh tender package";
+      button.textContent = indexedOnly ? "Review indexed package" : "Refresh tender package";
     } catch (error) {
       panel.replaceChildren(
         make("p", error instanceof Error ? error.message : "Tender package ingestion unavailable.", "qualification-error"),
@@ -269,6 +271,7 @@
 
       const packageButton = make("button", "Ingest tender package", "package-toggle secondary");
       packageButton.type = "button";
+      publicMode.then(indexedOnly => { if (indexedOnly) packageButton.textContent = "Review indexed package"; });
       const packagePanel = make("section", null, "qualification-panel package-panel");
       packagePanel.hidden = true;
       packagePanel.setAttribute("aria-label", `Procurement document package for ${publication}`);
