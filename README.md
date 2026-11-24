@@ -4,6 +4,10 @@ TenderGraph is a local-first procurement intelligence product for finding, quali
 
 Built by **Tanjim Hossain** with Python, PostgreSQL/pgvector, dbt, FastAPI, sentence-transformers, and optional local Ollama generation.
 
+## Final v1 scope
+
+Development scope is frozen to the seven agreed phases. See [release scope](docs/RELEASE_SCOPE.md) and [free-first release handoff](docs/RELEASE_HANDOFF.md) for the acceptance criteria and deferred live/billing gates. No paid service is required for local development.
+
 ## Product workflow
 
 TenderGraph currently supports the first two stages of the procurement opportunity workflow:
@@ -22,6 +26,8 @@ The product intentionally does **not** treat a fit score as a win probability or
 - **Notice qualification intelligence:** deterministic extraction of supported requirement and document signals from indexed TED notice text, including explicit-vs-mentioned evidence, deadline risk, potential hard-gate flags, and next review actions.
 - **Procurement-document intelligence:** official TED XML document-reference discovery, restricted/unrestricted access classification, SSRF-safe bounded fetching, local raw-file caching, text extraction for supported formats, package-level requirement signals, and page/section/chunk provenance.
 - **Decision dossier:** account-scoped consolidation of stored company fit, deadline readiness, notice qualification, procurement-document evidence, potential hard gates, document coverage, manual evidence confirmations, risks, and next actions without producing a legal eligibility verdict or win probability.
+- **Historical intelligence:** earlier indexed notices for the same buyer name/country, result-notice counts, observed median estimates by currency, and explicit contract-linked historical organization evidence where enriched from official award XML. Not current-incumbent prediction.
+- **Feedback ranking:** account-scoped exclusion of ignored/no-bid items and bounded buyer-history adjustment; the original company-fit score is preserved.
 - **Personalized alerts:** persisted account preferences and deduplicated recent/open/high-fit opportunity alerts refreshed after scheduled TED ingestion.
 - **Evidence workspace:** evidence selection, cited answers, abstention, and official TED source links; local Ollama generation is optional.
 - **Operations:** scheduler wrapper, freshness monitoring, reproducible CI, real PostgreSQL smoke tests, and optional API container packaging.
@@ -144,6 +150,7 @@ A failed embedding stage can be repaired without re-ingesting TED using `make re
 | `POST /matches` | Rank tenders for a company profile |
 | `POST /search` | Hybrid lexical + semantic retrieval |
 | `GET /qualification/{publication_number}` | Notice-text qualification and risk signals |
+| `GET /history/{publication_number}` | Indexed prior buyer notices and available contract-linked award evidence |
 | `GET /documents/{publication_number}` | Read procurement-document package state |
 | `POST /documents/{publication_number}/ingest` | Discover official document references and safely fetch unrestricted resources |
 | `GET /documents/{publication_number}/intelligence` | Requirement/risk signals from extracted procurement-document text |
@@ -223,9 +230,13 @@ CI performs:
 
 The qualification and document-package smokes are deterministic and do not call a paid or hosted AI service.
 
+## Historical data and local recovery
+
+`make history-index HISTORY_LIMIT=20` enriches a bounded batch of indexed result notices from official TED XML. The historical panel uses only earlier indexed notices and does not infer award prices or incumbents. `make db-backup` creates a protected local PostgreSQL dump. Follow the [handoff](docs/RELEASE_HANDOFF.md) for a disposable restore test.
+
 ## Deployment and security boundary
 
-TenderGraph remains a **local-first product workspace**, not a public multi-user production service. Local registered accounts now have server-side password credentials, sessions, and account isolation, while anonymous local accounts remain supported for development. This is not yet production-internet security: public deployment still requires TLS/proxy hardening, rate limiting and abuse controls, CSRF review, secret management, resource controls, backups, monitoring, and broader security validation.
+TenderGraph remains a **local-first product workspace**, not a public multi-user production service. Local registered accounts now have server-side password credentials, sessions, and account isolation, while anonymous local accounts remain supported for development. Opt-in public preview mode adds host/origin checks, registered-session access, Secure cookies, a bounded request budget, and disables on-demand document fetching. This is not yet production-internet security: public deployment still requires TLS/proxy hardening, rate limiting and abuse controls, CSRF review, secret management, resource controls, backups, monitoring, and broader security validation.
 
 Procurement-document fetching is deliberately bounded. Only HTTP/HTTPS URLs published by the official TED notice are considered, redirects are revalidated, private/local network destinations are blocked, responses have time/size limits, and restricted/authenticated resources are not bypassed. This reduces SSRF and uncontrolled-crawl risk but is not a substitute for a production network sandbox and egress policy.
 

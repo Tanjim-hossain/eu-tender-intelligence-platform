@@ -56,9 +56,11 @@ database and Ollama behavior should still be verified locally before a demo.
 
 ## Before public hosting
 
-- Add authentication, rate limits, request/concurrency limits and TLS.
-- Restrict PostgreSQL networking: the existing database Compose port binds broadly
-  by default. Do not publish port 5433 to the internet; bind loopback or use only
+The final [release handoff](RELEASE_HANDOFF.md) supersedes the earlier planning checklist. Leave public origin unset for local operation. The database Compose binding is now loopback-only; the opt-in public preview guard requires a trusted HTTPS ingress, registered accounts, evidence mode and no public document-fetch requests. The guard is not a substitute for live security validation.
+
+
+- Validate implemented registered authentication and public request guard, then configure ingress rate/concurrency limits and TLS.
+- Restrict PostgreSQL networking: the database Compose port now binds to host loopback. Do not publish port 5433 to the internet; bind loopback or use only
   a private network on the deployment host.
 - Separate application read access from refresh/migration database privileges.
 - Persist/backup the database, audit artifacts and model cache; test restoration.
