@@ -3,11 +3,13 @@ from decimal import Decimal
 
 import pytest
 
+from tendergraph.matching.feedback import rerank_matches
 from tendergraph.matching.models import CompanyProfile
 from tendergraph.matching.service import (
     CompanyMatchingService,
     build_profile_query,
 )
+from tendergraph.product.models import OpportunitySnapshot, StoredOpportunityState
 from tendergraph.search.service import HybridSearchResult
 
 
@@ -203,3 +205,37 @@ def test_matching_marks_expired_tender_as_closed() -> None:
     assert match.signals.deadline_status == "closed"
     assert match.signals.deadline_fit == 0
     assert "Tender deadline has passed" in match.risks
+
+
+def test_feedback_excludes_ignored_and_preserves_fit_score() -> None:
+    now = datetime(2026, 10, 2, tzinfo=UTC)
+    candidates = [
+        make_candidate(
+            publication_number=key, semantic_score=score, buyer_country=country,
+            estimated_value=None, currency=None, deadline=now + timedelta(days=30),
+            rrf_score=0.03,
+        )
+        for key, score, country in [
+            ("ignored", 0.99, "BEL"), ("other", 0.87, "DEU"), ("similar", 0.85, "BEL")
+        ]
+    ]
+    result = CompanyMatchingService(
+        StubSearchService(candidates), now_provider=lambda: now,
+    ).match(CompanyProfile(company_name="Acme", services=["data"]), limit=3)
+    saved = StoredOpportunityState(
+        publication_number="past", disposition="saved", pipeline_stage="bid", note="",
+        match_score=90, snapshot=OpportunitySnapshot(
+            title="Past tender", buyer_name="Example Buyer", buyer_country="BEL",
+            source_html_url="https://ted.europa.eu/example",
+        ), created_at=now, updated_at=now,
+    )
+    ignored = StoredOpportunityState(
+        publication_number="ignored", disposition="ignored", pipeline_stage=None,
+        note="", match_score=None, snapshot=None, created_at=now, updated_at=now,
+    )
+    reranked = rerank_matches(result, [saved, ignored], limit=2)
+    assert [m.publication_number for m in reranked.matches] == ["similar", "other"]
+    base = {m.publication_number: m.match_score for m in result.matches}
+    assert all(m.match_score == base[m.publication_number] for m in reranked.matches)
+    assert result.count == 3
+    assert reranked.count == 2

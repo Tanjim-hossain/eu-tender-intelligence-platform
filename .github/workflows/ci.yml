@@ -50,13 +50,30 @@ jobs:
           node --check src/tendergraph/api/web/auth.js
           node --check src/tendergraph/api/web/qualification.js
           node --check src/tendergraph/api/web/decision.js
+          node --check src/tendergraph/api/web/history.js
+          node --check src/tendergraph/api/web/app.js
           node --check src/tendergraph/api/web/alerts.js
 
       - name: Check scheduled refresh shell syntax
-        run: bash -n scripts/run_scheduled_refresh.sh
+        run: |
+          bash -n scripts/run_scheduled_refresh.sh
+          bash -n scripts/backup_database.sh
+          bash -n scripts/restore_database_check.sh
 
       - name: Verify distribution packaging
         run: make package
+
+      - name: Install free browser test runtime
+        run: |
+          npm install --no-save --package-lock=false playwright@1.51.1
+          npx playwright install --with-deps chromium
+
+      - name: Exercise browser workflow (synthetic API fixtures)
+        env:
+          TENDERGRAPH_BROWSER_REPORT_DIR: /tmp/tendergraph-browser
+          HF_HUB_OFFLINE: "1"
+          TRANSFORMERS_OFFLINE: "1"
+        run: node tests/browser/ui_smoke.mjs
 
   persistence:
     name: Product, auth, alerts, decisions, qualification, and document PostgreSQL round trips
@@ -92,6 +109,21 @@ jobs:
       - name: Install project
         run: uv sync --frozen
 
+      - name: Exercise PostgreSQL backup and disposable recovery
+        env:
+          PG_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          docker exec "$PG_CONTAINER" psql -v ON_ERROR_STOP=1 -U tendergraph -d tendergraph -c "CREATE TABLE public.restore_probe (id integer PRIMARY KEY, value text NOT NULL); INSERT INTO public.restore_probe VALUES (1, 'restore-check');"
+          docker exec "$PG_CONTAINER" pg_dump -U tendergraph -Fc --no-owner --no-acl tendergraph > /tmp/tendergraph-restore-probe.dump
+          docker exec -i "$PG_CONTAINER" pg_restore --list < /tmp/tendergraph-restore-probe.dump >/dev/null
+          docker exec "$PG_CONTAINER" createdb -U tendergraph restore_check_ci
+          docker exec -i "$PG_CONTAINER" pg_restore -U tendergraph --exit-on-error --no-owner --no-acl -d restore_check_ci < /tmp/tendergraph-restore-probe.dump
+          test "$(docker exec "$PG_CONTAINER" psql -XAt -U tendergraph -d restore_check_ci -c 'SELECT value FROM public.restore_probe WHERE id=1')" = restore-check
+          docker exec "$PG_CONTAINER" dropdb -U tendergraph restore_check_ci
+          docker exec "$PG_CONTAINER" psql -v ON_ERROR_STOP=1 -U tendergraph -d tendergraph -c 'DROP TABLE public.restore_probe'
+          rm /tmp/tendergraph-restore-probe.dump
+
       - name: Exercise product persistence against PostgreSQL
         env: &postgres-env
           POSTGRES_DB: tendergraph
@@ -116,6 +148,10 @@ jobs:
       - name: Exercise qualification intelligence against PostgreSQL
         env: *postgres-env
         run: uv run --frozen python scripts/smoke_qualification.py
+
+      - name: Exercise historical procurement intelligence against PostgreSQL
+        env: *postgres-env
+        run: uv run --frozen python scripts/smoke_history.py
 
       - name: Exercise document package intelligence against PostgreSQL
         env: *postgres-env
@@ -145,6 +181,7 @@ jobs:
           assert c.get('/assets/auth.css').status_code == 200;
           assert c.get('/assets/qualification.js').status_code == 200;
           assert c.get('/assets/decision.js').status_code == 200;
+          assert c.get('/assets/history.js').status_code == 200;
           assert c.get('/assets/decision.css').status_code == 200;
           assert c.get('/assets/alerts.js').status_code == 200;
           assert c.get('/assets/alerts.css').status_code == 200;

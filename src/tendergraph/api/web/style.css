@@ -11,3 +11,15 @@ main{padding:40px 42px 22px;max-width:1640px;width:100%;margin:auto}.workspace{m
 @media(max-width:900px){.sidebar{display:none}.layout{display:block}.topbar{padding:0 24px;height:70px}.top-label{display:none}main{padding:24px}.mobile-nav{display:flex;gap:7px;margin-bottom:26px;padding:4px;background:#e9eee7;border-radius:9px}.mobile-nav button{flex:1;border:0;border-radius:6px;background:transparent;color:var(--muted);padding:9px 10px;font-size:11px;font-weight:650}.mobile-nav button.active{background:#fff;color:var(--ink);box-shadow:0 2px 8px #1c3b3010}}
 @media(max-width:700px){.profile-grid{grid-template-columns:1fr 1fr}.content-grid{grid-template-columns:1fr;gap:25px}}
 @media(max-width:640px){.topbar{padding:0 18px}.brand{font-size:21px}.docs-link{font-size:11px}main{padding:28px 18px}.intro h1{font-size:32px;max-width:360px}.intro>p:last-child{font-size:12px}.profile-panel{padding:18px}.profile-grid{grid-template-columns:1fr}.field-wide{grid-column:auto}.profile-actions{align-items:flex-start;flex-direction:column}.profile-actions button{width:100%}.search-panel{padding:18px}.search-row{flex-direction:column}.search-row button{padding:12px}.search-options{flex-wrap:wrap}.empty-state{padding:30px 18px}.match-empty{min-height:250px}.answer-panel{padding:20px}.match-card{padding:17px}.match-card-top{align-items:center}.card-fields{grid-template-columns:1fr}.signal-grid{grid-template-columns:1fr}.card-bottom{align-items:flex-start;flex-direction:column}.card-bottom span{text-align:left}.fit-disclaimer{flex-direction:column;gap:5px}footer{font-size:9px;flex-wrap:wrap}.examples{gap:6px}.examples button{font-size:9px}}
+
+/* Final workspace polish: readable controls, keyboard focus and wrapping. */
+.match-filter,.saved-stage-filter{margin:0 0 10px}
+.match-filter label,.saved-stage-filter{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.match-filter select,.saved-stage-filter select{width:auto;max-width:100%;padding:6px 10px}
+.saved-card-actions{flex-wrap:wrap}
+.history-panel{display:grid;gap:10px;overflow-wrap:anywhere}
+.history-panel[hidden]{display:none}
+.history-panel h3{margin:0}
+.history-panel article{min-width:0}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid #377b5e;outline-offset:3px}
+@media(max-width:640px){.saved-toolbar{flex-wrap:wrap}.saved-card-actions button{white-space:normal;min-height:36px}.history-panel{padding:12px}.topbar{flex-wrap:wrap;min-height:70px;height:auto;padding-block:10px}}

@@ -69,6 +69,8 @@ def _authorize_account(
             detail="Product account not found",
         )
     if account.account_type == "local":
+        if getattr(request.app.state, "public_mode", False):
+            raise HTTPException(status_code=403, detail="Local accounts are disabled in public mode")
         return account
 
     token = request.cookies.get(SESSION_COOKIE_NAME)

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from contextlib import ExitStack, asynccontextmanager
+from os import environ
 from pathlib import Path
 from typing import cast
 
@@ -30,6 +31,7 @@ from tendergraph.api.models import (
     SearchResponse,
     SearchResult,
 )
+from tendergraph.api.public_guard import install_public_guard, validate_origin
 from tendergraph.auth.router import router as auth_router
 from tendergraph.database.config import (
     DatabaseSettings,
@@ -39,11 +41,14 @@ from tendergraph.database.pool import (
 )
 from tendergraph.decision.router import router as decision_router
 from tendergraph.documents.router import router as documents_router
+from tendergraph.history import router as history_router
+from tendergraph.matching.feedback import rerank_matches
 from tendergraph.matching.models import CompanyMatchResult
 from tendergraph.matching.service import CompanyMatchingService
 from tendergraph.pipeline.status import (
     read_operational_status,
 )
+from tendergraph.product.router import _authorize_account, _repository
 from tendergraph.product.router import router as product_router
 from tendergraph.qualification.router import router as qualification_router
 from tendergraph.rag.errors import GenerationUnavailable, InvalidGeneratedAnswer
@@ -64,6 +69,8 @@ async def lifespan(
     app: FastAPI,
 ) -> AsyncIterator[None]:
     rag_settings = RAGSettings()
+    if getattr(app.state, "public_mode", False) and rag_settings.provider != "evidence":
+        raise RuntimeError("Public preview requires evidence-only answer mode")
     settings = DatabaseSettings()
 
     pool = create_connection_pool(
@@ -101,7 +108,11 @@ async def lifespan(
 def create_app(
     *,
     use_lifespan: bool = True,
+    public_origin: str | None = None,
 ) -> FastAPI:
+    origin = public_origin if public_origin is not None else environ.get("TENDERGRAPH_PUBLIC_ORIGIN", "")
+    if origin:
+        origin = validate_origin(origin)
     application = FastAPI(
         title="EU TenderGraph API",
         description=(
@@ -110,6 +121,9 @@ def create_app(
             "procurement notices."
         ),
         version="0.1.0",
+        docs_url=None if origin else "/docs",
+        redoc_url=None if origin else "/redoc",
+        openapi_url=None if origin else "/openapi.json",
         lifespan=(
             lifespan
             if use_lifespan
@@ -117,12 +131,17 @@ def create_app(
         ),
     )
 
+    application.state.public_mode = bool(origin)
+    if origin:
+        application.middleware("http")(install_public_guard(origin))
+
     application.include_router(auth_router)
     application.include_router(product_router)
     application.include_router(alerts_router)
     application.include_router(decision_router)
     application.include_router(qualification_router)
     application.include_router(documents_router)
+    application.include_router(history_router)
 
     web_dir = Path(__file__).parent / "web"
     application.mount("/assets", StaticFiles(directory=web_dir), name="assets")
@@ -144,6 +163,7 @@ def create_app(
         if config is None:
             raise HTTPException(status_code=503, detail="Application not initialized")
         return {
+            "public_mode": bool(request.app.state.public_mode),
             "answer_mode": config.provider,
             "generation_model": config.model if config.provider != "evidence" else None,
             "reranking": config.rerank,
@@ -258,11 +278,23 @@ def create_app(
             request.app.state.matching_service,
         )
         try:
-            return service.match(
-                payload.profile,
-                limit=payload.limit,
+            if payload.account_id is None:
+                return service.match(
+                    payload.profile, limit=payload.limit,
+                    retrieval_depth=payload.retrieval_depth,
+                )
+            repository = _repository(request)
+            _authorize_account(
+                request=request, repository=repository, account_id=payload.account_id,
+            )
+            state = repository.get_state(payload.account_id)
+            if state is None:
+                raise HTTPException(status_code=404, detail="Product account not found")
+            candidates = service.match(
+                payload.profile, limit=min(50, payload.retrieval_depth),
                 retrieval_depth=payload.retrieval_depth,
             )
+            return rerank_matches(candidates, state.opportunities, limit=payload.limit)
         except (OperationalError, PoolTimeout) as exc:
             raise HTTPException(
                 status_code=503,

@@ -1,6 +1,5 @@
 "use strict";
 (() => {
-  import("/assets/persistence.js").catch(() => {});
   const SAVED_KEY = "tendergraph.savedOpportunities.v1";
   const IGNORED_KEY = "tendergraph.ignoredOpportunities.v1";
   const STAGES = [
@@ -120,7 +119,9 @@
     cards.forEach((card, index) => {
       const item = latestMatches[index];
       if (!item) return;
-      const hidden = ignoredState.has(item.publication_number);
+      const filter = $("match-deadline-filter")?.value || "all";
+      const deadline = item.earliest_deadline ? Date.parse(item.earliest_deadline) : NaN;
+      const hidden = ignoredState.has(item.publication_number) || (filter === "open" && !(deadline > Date.now())) || (filter === "unknown" && Number.isFinite(deadline));
       card.hidden = hidden;
       if (hidden) return;
       visible += 1;
@@ -193,7 +194,10 @@
       updateCounts();
       return;
     }
-    items.forEach((item) => {
+    const stageFilter = $("saved-stage-filter")?.value || "all";
+    const visibleItems = items.filter(item => stageFilter === "all" || normalizeStage(item.stage) === stageFilter);
+    if (!visibleItems.length) container.append(make("p", "No saved opportunities in this stage.", "decision-empty"));
+    visibleItems.forEach((item) => {
       const card = make("article", null, `saved-card stage-${normalizeStage(item.stage)}`);
       const top = make("div", null, "saved-card-top");
       const meta = make("div", null, "saved-meta");
@@ -263,7 +267,9 @@
     button.addEventListener("click", () => { const workspace = $("saved-workspace"); if (workspace) workspace.hidden = true; });
   });
   $("reset-ignored")?.addEventListener("click", () => { write(IGNORED_KEY, []); updateCounts(); scheduleEnhance(); });
-  $("clear-saved")?.addEventListener("click", () => { write(SAVED_KEY, {}); renderSaved(); scheduleEnhance(); });
+  $("match-deadline-filter")?.addEventListener("change", scheduleEnhance);
+  $("saved-stage-filter")?.addEventListener("change", renderSaved);
+  $("clear-saved")?.addEventListener("click", () => { if (!window.confirm("Remove all saved opportunities and their reviews?")) return; write(SAVED_KEY, {}); renderSaved(); scheduleEnhance(); });
 
   const matchResults = $("match-results");
   if (matchResults) new MutationObserver(scheduleEnhance).observe(matchResults, {childList:true});

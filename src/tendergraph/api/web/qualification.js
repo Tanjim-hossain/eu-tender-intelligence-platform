@@ -3,6 +3,12 @@
   const container = document.getElementById("saved-results");
   if (!container) return;
 
+  const safeSource = raw => {
+    try {
+      const url = new URL(raw);
+      return ["http:", "https:"].includes(url.protocol) && !url.username && !url.password ? url.href : null;
+    } catch { return null; }
+  };
   const make = (tag, text, className) => {
     const node = document.createElement(tag);
     if (text != null) node.textContent = text;
@@ -48,9 +54,9 @@
       if (item.chunk_id) provenance.push(`Chunk ${item.chunk_id}`);
       if (provenance.length) top.append(make("span", provenance.join(" · "), "signal-pill explicit"));
       row.append(top, make("p", item.evidence, "qualification-evidence"));
-      if (item.source_url) {
+      if (safeSource(item.source_url)) {
         const source = make("a", "Open evidence source ↗", "package-link");
-        source.href = item.source_url;
+        source.href = safeSource(item.source_url);
         source.target = "_blank";
         source.rel = "noopener noreferrer";
         row.append(source);
@@ -155,7 +161,7 @@
         top.append(make("span", documentStatusLabel(item.status), `signal-pill ${item.status === "extracted" ? "explicit" : "mentioned"}`));
         if (item.restricted) top.append(make("span", "Controlled access", "signal-pill hard-gate"));
         const link = make("a", "Open buyer document ↗", "package-link");
-        link.href = item.source_url;
+        link.href = safeSource(item.source_url) || "#";
         link.target = "_blank";
         link.rel = "noopener noreferrer";
         row.append(top, link);
@@ -212,13 +218,15 @@
     }
   };
 
+  const publicMode = fetch("/config").then(r => r.ok ? r.json() : {}).then(config => Boolean(config.public_mode)).catch(() => false);
   const loadPackage = async (button, panel, publication) => {
     button.disabled = true;
     button.textContent = "Ingesting official package…";
     panel.hidden = false;
     panel.replaceChildren(make("p", "Reading the official TED XML, fetching unrestricted document URLs safely, and extracting locally supported text…", "qualification-loading"));
     try {
-      const ingestResponse = await fetch(`/documents/${encodeURIComponent(publication)}/ingest`, {
+      const indexedOnly = await publicMode;
+      const ingestResponse = indexedOnly ? await fetch(`/documents/${encodeURIComponent(publication)}`) : await fetch(`/documents/${encodeURIComponent(publication)}/ingest`, {
         method: "POST",
         headers: {"Content-Type": "application/json"},
         body: JSON.stringify({fetch_documents: true, force: false})
@@ -234,7 +242,7 @@
         throw new Error(payload.detail || `Package intelligence failed (${intelligenceResponse.status})`);
       }
       renderPackage(panel, packageData, await intelligenceResponse.json());
-      button.textContent = "Refresh tender package";
+      button.textContent = indexedOnly ? "Review indexed package" : "Refresh tender package";
     } catch (error) {
       panel.replaceChildren(
         make("p", error instanceof Error ? error.message : "Tender package ingestion unavailable.", "qualification-error"),
@@ -263,6 +271,7 @@
 
       const packageButton = make("button", "Ingest tender package", "package-toggle secondary");
       packageButton.type = "button";
+      publicMode.then(indexedOnly => { if (indexedOnly) packageButton.textContent = "Review indexed package"; });
       const packagePanel = make("section", null, "qualification-panel package-panel");
       packagePanel.hidden = true;
       packagePanel.setAttribute("aria-label", `Procurement document package for ${publication}`);

@@ -120,7 +120,7 @@ $("profile-form").addEventListener("submit", async (event) => {
   let profile; try {profile = buildProfile();} catch(error) {notify(error.message); return;}
   pending(true); $("match-results").replaceChildren(el("p", "Ranking the loaded tender dataset for your company…", "loading")); $("match-count").textContent = "…"; $("match-time").textContent = "";
   const started = performance.now();
-  try {const limit = Number($("match-limit").value); const data = await request("/matches", {profile, limit, retrieval_depth:Math.max(50,limit)}); saveProfile(profile); renderMatches(data); $("match-time").textContent = `${((performance.now()-started)/1000).toFixed(1)}s`;}
+  try {const limit = Number($("match-limit").value); const account_id = localStorage.getItem("tendergraph.productAccountId.v1"); const data = await request("/matches", {profile, limit, retrieval_depth:Math.max(50,limit), ...(account_id ? {account_id} : {})}); saveProfile(profile); renderMatches(data); $("match-time").textContent = `${((performance.now()-started)/1000).toFixed(1)}s`;}
   catch(error) {notify(error.message); $("match-count").textContent = "—"; $("match-results").replaceChildren(el("p", "Personalized matching could not be completed. Your company profile has been kept.", "loading"));}
   finally {pending(false);}
 });

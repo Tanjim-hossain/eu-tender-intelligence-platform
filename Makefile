@@ -58,3 +58,16 @@ app-up:
 
 app-stop:
 	$(COMPOSE) -f infra/compose.app.yml stop api
+
+
+.PHONY: history-index db-backup db-restore-check
+HISTORY_LIMIT ?= 20
+history-index:
+	uv run --frozen --env-file .env python scripts/index_award_evidence.py --limit "$(HISTORY_LIMIT)"
+
+db-backup:
+	bash scripts/backup_database.sh
+
+db-restore-check:
+	@test -n "$(BACKUP)" && test -n "$(RESTORE_DB)" || (echo "Set BACKUP and RESTORE_DB"; exit 2)
+	bash scripts/restore_database_check.sh "$(BACKUP)" "$(RESTORE_DB)"

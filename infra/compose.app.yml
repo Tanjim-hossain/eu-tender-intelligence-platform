@@ -14,10 +14,12 @@ services:
       # Native Mac mode remains the recommended workflow for local Ollama.
       # Loopback inside this container cannot reach the host's Ollama daemon.
       RAG_PROVIDER: evidence
+      TENDERGRAPH_PUBLIC_ORIGIN: ${TENDERGRAPH_PUBLIC_ORIGIN:-}
     ports:
       - "127.0.0.1:${API_PORT:-8000}:8000"
     volumes:
       - tendergraph_model_cache:/home/tendergraph/.cache/huggingface
+      - tendergraph_document_cache:/app/data/documents
       - ../data/refresh:/app/data/refresh:ro
     depends_on:
       postgres:
@@ -35,3 +37,4 @@ services:
 
 volumes:
   tendergraph_model_cache:
+  tendergraph_document_cache:
